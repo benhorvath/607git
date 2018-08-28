@@ -1,0 +1,116 @@
+---
+title: "Homework No. 1"
+author: "DATA-607 // Ben Horvath"
+date: "August 28, 2018"
+output:
+  html_document:
+    theme: null
+    css: ../static/architect.css
+    template: ../static/architect.html
+    pandoc_args: [
+      "--mathjax", "",
+      "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+  pdf_document:
+    keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+  \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries:
+
+```{r, warning=FALSE}
+library(RCurl)
+```
+
+First, let's load the data directly from the source:
+
+```{r}
+data_url <- 'https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data'
+original <- getURL(data_url) 
+df <- read.csv(text=original, header=FALSE, stringsAsFactors=FALSE)
+head(df)
+```
+
+Fill in the column names and subset to just a handful:
+
+```{r}
+colnames(df) <- c('poisonous',
+                  'cap_shape', 
+                  'cap_surface', 
+                  'cap_color', 
+                  'bruises', 
+                  'odor', 
+                  'gill_attachment', 
+                  'gill_spacing', 
+                  'gill_size', 
+                  'gill_color', 
+                  'stalk_shape', 
+                  'stalk_root', 
+                  'stalk_surface_above_ring', 
+                  'stalk_surface_below_ring', 
+                  'stalk_color_above_ring', 
+                  'stalk_color_below_ring', 
+                  'veil_type', 
+                  'veil_color', 
+                  'ring_number', 
+                  'ring_type', 
+                  'spore_print_color', 
+                  'population', 
+                  'habitat')
+
+cols <- c('poisonous', 'bruises', 'gill_size', 'ring_number')
+df <- df[cols]
+head(df)
+```
+
+The remaining task is the de-abbreviate the data, converting each entry to a meaningful designation. 
+
+One way to do this would be to use `gsub()`. However, a custom function might be able to make the job a little easier and a little cleaner. 
+
+`gsub_map()` accepts a string and a mapping of pattern-replacements, performing multiple `gsub()` operations together:
+
+```{r}
+gsub_map <- function(s, mapping) {
+    # Accepts a mapping of pattern-replacements on a string s, allowing more 
+    # compact operations involving mutliple substitutions on the same string
+    for (i in 1:length(mapping)) {
+        pattern <- names(mapping[i])
+        replacement <- mapping[i]
+        s <- gsub(pattern, replacement, s)
+    }
+    return(s)
+}
+
+# Example
+gsub_map('foo bar', list(foo='foo1', bar='bar1'))
+```
+
+Using `sapply()` to apply to function to each row in the columns:
+
+```{r}
+df$poisonous <- sapply(df$poisonous, gsub_map, list(e='edible', p='poisonous'))
+df$bruises <- sapply(df$bruises, gsub_map, list(t='TRUE', f='FALSE'))
+df$gill_size <- sapply(df$gill_size, gsub_map, list(b='broad', n='narrow'))
+df$ring_number <- sapply(df$ring_number, gsub_map, list(n='0', 'o'='1', 't'='2'))
+
+head(df)
+```
+
+Finally, convert to proper R data types where applicable:
+
+```{r}
+df$bruises <- as.logical(df$bruises)
+df$ring_number <- as.integer(df$ring_number)
+
+head(df)
+sapply(df, class)
+```

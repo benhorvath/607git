@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="DATA-607 // Ben Horvath" />
+
+<meta name="date" content="2018-08-28" />
+
+<title>Homework No. 1</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+
+<link href="data:text/css;charset=utf-8,%0A%0A%40import%20url%28data%3Atext%2Fcss%3B%20charset%3Dutf%2D8%2C%2540font%252Dface%2520%257B%250A%2520%2520font%252Dfamily%253A%2520%2527Open%2520Sans%2527%253B%250A%2520%2520font%252Dstyle%253A%2520normal%253B%250A%2520%2520font%252Dweight%253A%2520400%253B%250A%2520%2520src%253A%2520local%2528%2527Open%2520Sans%2520Regular%2527%2529%252C%2520local%2528%2527OpenSans%252DRegular%2527%2529%252C%2520url%2528https%253A%252F%252Ffonts%252Egstatic%252Ecom%252Fs%252Fopensans%252Fv15%252Fmem8YaGs126MiZpBA%252DUFVZ0e%252Ettf%2529%2520format%2528%2527truetype%2527%2529%253B%250A%257D%250A%29%3B%0Ahtml%20%7B%0Afont%2Dfamily%3A%20sans%2Dserif%3B%20%0A%2Dwebkit%2Dtext%2Dsize%2Dadjust%3A%20100%25%3B%20%0A%2Dms%2Dtext%2Dsize%2Dadjust%3A%20100%25%3B%20%0A%7D%0A%0Abody%20%7B%0Amargin%3A%200%3B%0A%7D%0A%0A%0Aarticle%2C%0Aaside%2C%0Adetails%2C%0Afigcaption%2C%0Afigure%2C%0Afooter%2C%0Aheader%2C%0Ahgroup%2C%0Amain%2C%0Amenu%2C%0Anav%2C%0Asection%2C%0Asummary%20%7B%0Adisplay%3A%20block%3B%0A%7D%0A%0Aaudio%2C%0Acanvas%2C%0Aprogress%2C%0Avideo%20%7B%0Adisplay%3A%20inline%2Dblock%3B%20%0Avertical%2Dalign%3A%20baseline%3B%20%0A%7D%0A%0Aaudio%3Anot%28%5Bcontrols%5D%29%20%7B%0Adisplay%3A%20none%3B%0Aheight%3A%200%3B%0A%7D%0A%0A%5Bhidden%5D%2C%0Atemplate%20%7B%0Adisplay%3A%20none%3B%0A%7D%0A%0A%0Aa%20%7B%0Abackground%2Dcolor%3A%20transparent%3B%0A%7D%0A%0Aa%3Aactive%2C%0Aa%3Ahover%20%7B%0Aoutline%3A%200%3B%0A%7D%0A%0A%0Aabbr%5Btitle%5D%20%7B%0Aborder%2Dbottom%3A%201px%20dotted%3B%0A%7D%0A%0Ab%2C%0Astrong%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0A%0Adfn%20%7B%0Afont%2Dstyle%3A%20italic%3B%0A%7D%0A%0Ah1%20%7B%0Amargin%3A%200%2E67em%200%3B%0Afont%2Dsize%3A%202em%3B%0A%7D%0A%0Amark%20%7B%0Acolor%3A%20%23000%3B%0Abackground%3A%20%23ff0%3B%0A%7D%0A%0Asmall%20%7B%0Afont%2Dsize%3A%2080%25%3B%0A%7D%0A%0Asub%2C%0Asup%20%7B%0Aposition%3A%20relative%3B%0Afont%2Dsize%3A%2075%25%3B%0Aline%2Dheight%3A%200%3B%0Avertical%2Dalign%3A%20baseline%3B%0A%7D%0Asup%20%7B%0Atop%3A%20%2D0%2E5em%3B%0A%7D%0Asub%20%7B%0Abottom%3A%20%2D0%2E25em%3B%0A%7D%0A%0A%0Aimg%20%7B%0Aborder%3A%200%3B%0A%7D%0A%0Asvg%3Anot%28%3Aroot%29%20%7B%0Aoverflow%3A%20hidden%3B%0A%7D%0A%0A%0Afigure%20%7B%0Amargin%3A%201em%2040px%3B%0A%7D%0A%0Ahr%20%7B%0Aheight%3A%200%3B%0A%2Dmoz%2Dbox%2Dsizing%3A%20content%2Dbox%3B%0Abox%2Dsizing%3A%20content%2Dbox%3B%0A%7D%0A%0Apre%20%7B%0Aoverflow%3A%20auto%3B%0A%7D%0A%0Acode%2C%0Akbd%2C%0Apre%2C%0Asamp%20%7B%0Afont%2Dfamily%3A%20monospace%2C%20monospace%3B%0Afont%2Dsize%3A%201em%3B%0A%7D%0A%0A%0Atable%20%7B%0Aborder%2Dspacing%3A%200%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0Awidth%3A%20100%25%3B%0Amargin%3A%2020px%20auto%3B%0A%7D%0Ath%2C%20td%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23bbbbbb%3B%0Atext%2Dalign%3A%20left%3B%0Apadding%3A%2010px%3B%0A%7D%0Ath%20%7B%0Abackground%2Dcolor%3A%20%2363a0e1%3B%0Acolor%3A%20white%3B%0A%7D%0Atr%3Anth%2Dchild%28odd%29%20%7B%0Abackground%2Dcolor%3A%20%23eeeeee%3B%0A%7D%0Atr%3Anth%2Dchild%28even%29%20%7B%0Abackground%2Dcolor%3A%20%23ffffff%3B%0A%7D%0A%0Abody%20%7B%0Afont%2Dfamily%3A%20%27Open%20Sans%27%2C%20%27Helvetica%20Neue%27%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2016px%3B%0Afont%2Dweight%3A%20400%3B%0Aline%2Dheight%3A%201%2E5%3B%0Acolor%3A%20%23666%3B%0Abackground%3A%20%23ffffff%3B%0A%7D%0Ap%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%232879d0%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%232268b2%3B%0A%7D%0Aheader%20%7B%0Apadding%2Dtop%3A%2040px%3B%0Apadding%2Dbottom%3A%2020px%3B%0Abackground%3A%20%232e7bcf%3B%0Aborder%2Dbottom%3A%20solid%201px%20%23275da1%3B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aheader%20h1%20%7B%0Amargin%2Dtop%3A%200%3B%0Amargin%2Dbottom%3A%200%2E5em%3B%0Afont%2Dsize%3A%202em%3B%0Afont%2Dweight%3A%20bold%3B%0Aline%2Dheight%3A%201%3B%0Acolor%3A%20%23fff%3B%0Aletter%2Dspacing%3A%20%2D1px%3B%0A%7D%0Aheader%20h2%20%7B%0Amargin%2Dtop%3A%200%3B%0Amargin%2Dbottom%3A%201em%3B%0Afont%2Dsize%3A%201%2E5em%3B%0Afont%2Dweight%3A%20normal%3B%0Aline%2Dheight%3A%201%2E3%3B%0Acolor%3A%20%239ddcff%3B%0Aletter%2Dspacing%3A%200%3B%0A%7D%0Aheader%20h3%20%7B%0Amargin%2Dtop%3A%200%3B%0Amargin%2Dbottom%3A%201em%3B%0Afont%2Dsize%3A%201%2E2em%3B%0Afont%2Dweight%3A%20normal%3B%0Aline%2Dheight%3A%201%2E2%3B%0Acolor%3A%20%239ddcff%3B%0Aletter%2Dspacing%3A%200%3B%0A%7D%0A%2Einner%2C%20%2Etoc%20%7B%0Aposition%3A%20relative%3B%0Awidth%3A%20840px%3B%0Afont%2Dsize%3A%201%2E1em%3B%0Amargin%3A%200%20auto%3B%0A%7D%0A%2Etoc%20%7B%0Apadding%2Dtop%3A%201em%3B%0Apadding%2Dbottom%3A%200%3B%0A%7D%0A%2Etoc%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0A%23content%2Dwrapper%20%7B%0Apadding%2Dtop%3A%2030px%3B%0Aborder%2Dtop%3A%20solid%201px%20%23fff%3B%0A%7D%0A%23main%2Dcontent%20img%20%7B%0Amax%2Dwidth%3A%20100%25%3B%0A%7D%0Acode%2C%20pre%20%7B%0Amargin%2Dbottom%3A%2030px%3B%0Afont%2Dfamily%3A%20Monaco%2C%20Consolas%2C%20%22Bitstream%20Vera%20Sans%20Mono%22%2C%20%22Lucida%20Console%22%2C%20Terminal%2C%20monospace%3B%0Afont%2Dsize%3A%201em%3B%0Acolor%3A%20%23222%3B%0A%7D%0Acode%20%7B%0Apadding%3A%200%203px%3B%0Abackground%2Dcolor%3A%20%23f2f8fc%3B%0Aborder%3A%20solid%201px%20%23dbe7f3%3B%0A%7D%0Apre%20%7B%0Apadding%3A%2020px%3B%0Aoverflow%3A%20auto%3B%0Atext%2Dshadow%3A%20none%3B%0Abackground%3A%20%23fafafa%3B%0Aborder%3A%20solid%201px%20%23f2f2f2%3B%0Afont%2Dsize%3A%200%2E9em%3B%0A%7D%0Apre%20code%20%7B%0Apadding%3A%200%3B%0Acolor%3A%20%232879d0%3B%0Abackground%2Dcolor%3A%20%23fafafa%3B%0Aborder%3A%20none%3B%0A%7D%0Aul%2C%20ol%2C%20dl%20%7B%0Amargin%2Dbottom%3A%2020px%3B%0A%7D%0A%0Ahr%20%7B%0Aheight%3A%201px%3B%0Amargin%2Dtop%3A%201em%3B%0Amargin%2Dbottom%3A%201em%3B%0Aborder%3A%200%3B%0Abackground%3A%20%23aaa%3B%0Abackground%2Dimage%3A%20linear%2Dgradient%28to%20right%2C%20%23eee%2C%20%23aaa%2C%20%23eee%29%3B%0A%7D%0Aform%20%7B%0Apadding%3A%2020px%3B%0Abackground%3A%20%23f2f2f2%3B%0A%7D%0A%0A%23main%2Dcontent%20h1%20%7B%0Amargin%2Dtop%3A%200%3B%0Amargin%2Dbottom%3A%200%3B%0Afont%2Dsize%3A%202em%3B%0Afont%2Dweight%3A%20bold%3B%0Acolor%3A%20%23474747%3B%0Aletter%2Dspacing%3A%20%2D1px%3B%0A%7D%0A%23main%2Dcontent%20h1%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D0%2E8em%3B%0Acolor%3A%20%239ddcff%3B%0Acontent%3A%20%22%2F%22%3B%0A%7D%0A%23main%2Dcontent%20h2%20%7B%0Amargin%2Dbottom%3A%208px%3B%0Afont%2Dsize%3A%201%2E5em%3B%0Afont%2Dweight%3A%20bold%3B%0Acolor%3A%20%23474747%3B%0A%7D%0A%23main%2Dcontent%20h2%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D1%2E2em%3B%0Acontent%3A%20%22%2F%2F%22%3B%0Acolor%3A%20%239ddcff%3B%0A%7D%0A%23main%2Dcontent%20h3%20%7B%0Amargin%2Dtop%3A%2024px%3B%0Amargin%2Dbottom%3A%208px%3B%0Afont%2Dsize%3A%201%2E2em%3B%0Afont%2Dweight%3A%20bold%3B%0Acolor%3A%20%23474747%3B%0A%7D%0A%23main%2Dcontent%20h3%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D1%2E7em%3B%0Acontent%3A%20%22%2F%2F%2F%22%3B%0Acolor%3A%20%239ddcff%3B%0A%7D%0A%23main%2Dcontent%20h4%20%7B%0Amargin%2Dbottom%3A%208px%3B%0Afont%2Dsize%3A%201%2E1em%3B%0Afont%2Dweight%3A%20bold%3B%0Acolor%3A%20%23474747%3B%0A%7D%0Ah4%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D2em%3B%0Acontent%3A%20%22%2F%2F%2F%2F%22%3B%0Acolor%3A%20%239ddcff%3B%0A%7D%0A%23main%2Dcontent%20h5%20%7B%0Amargin%2Dbottom%3A%208px%3B%0Afont%2Dsize%3A%201em%3B%0Acolor%3A%20%23474747%3B%0A%7D%0Ah5%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D2%2E4em%3B%0Acontent%3A%20%22%2F%2F%2F%2F%2F%22%3B%0Acolor%3A%20%239ddcff%3B%0A%7D%0A%23main%2Dcontent%20h6%20%7B%0Amargin%2Dbottom%3A%208px%3B%0Afont%2Dsize%3A%200%2E9em%3B%0Acolor%3A%20%23474747%3B%0A%7D%0Ah6%3Abefore%20%7B%0Apadding%2Dright%3A%200%2E3em%3B%0Amargin%2Dleft%3A%20%2D3em%3B%0Acontent%3A%20%22%2F%2F%2F%2F%2F%2F%22%3B%0Acolor%3A%20%239ddcff%3B%0A%7D%0Ap%20%7B%0Amargin%2Dbottom%3A%2020px%3B%0A%7D%0Aa%20%7B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Ap%20a%20%7B%0Afont%2Dweight%3A%20400%3B%0A%7D%0Ablockquote%20%7B%0Apadding%3A%200%200%200%2030px%3B%0Amargin%2Dbottom%3A%2020px%3B%0Afont%2Dsize%3A%201em%3B%0Aborder%2Dleft%3A%2010px%20solid%20%23e9e9e9%3B%0A%7D%0Aul%2C%20ol%20%7B%0Apadding%2Dleft%3A%2030px%3B%0A%7D%0Adl%20dd%20%7B%0Afont%2Dstyle%3A%20italic%3B%0Afont%2Dweight%3A%20100%3B%0A%7D%0A%0A%2Eclearfix%3Aafter%20%7B%0Adisplay%3A%20block%3B%0Aheight%3A%200%3B%0Aclear%3A%20both%3B%0Avisibility%3A%20hidden%3B%0Acontent%3A%20%27%2E%27%3B%0A%7D%0A%2Eclearfix%20%7Bdisplay%3A%20inline%2Dblock%3B%7D%0A%2A%20html%20%2Eclearfix%20%7Bheight%3A%201%25%3B%7D%0A%2Eclearfix%20%7Bdisplay%3A%20block%3B%7D%0A%0A%0A%40media%20only%20screen%20and%20%28max%2Dwidth%3A%20850px%29%20%7B%0A%2Etoc%2C%20%2Einner%20%7B%0Awidth%3A%2093%25%3B%0Afont%2Dsize%3A%201em%3B%0A%7D%0Aheader%20%7B%0Apadding%3A%2010px%200%3B%0A%7D%0Aheader%20h1%2C%20header%20h2%20%7B%0Awidth%3A%20100%25%3B%0A%7D%0Aheader%20h1%20%7B%0Afont%2Dsize%3A%201%2E75em%3B%0A%7D%0Aheader%20h2%20%7B%0Afont%2Dsize%3A%201%2E2em%3B%0A%7D%0Aheader%20h3%20%7B%0Afont%2Dsize%3A%201em%3B%0A%7D%0A%23main%2Dcontent%20h1%3Abefore%2C%0A%23main%2Dcontent%20h2%3Abefore%2C%0A%23main%2Dcontent%20h3%3Abefore%2C%0A%23main%2Dcontent%20h4%3Abefore%2C%0A%23main%2Dcontent%20h5%3Abefore%2C%0A%23main%2Dcontent%20h6%3Abefore%20%7B%0Apadding%2Dright%3A%200%3B%0Amargin%2Dleft%3A%200%3B%0Acontent%3A%20none%3B%0A%7D%0A%7D%0A" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<header>
+<div class="inner">
+<h1 class="title toc-ignore">Homework No. 1</h1>
+<h3 class="author">DATA-607 // Ben Horvath</h3>
+<h3 class="date">August 28, 2018</h3>
+</div>
+</header>
+<div id="content-wrapper">
+  <div class="inner clearfix">
+    <section id="main-content">
+<p>Load libraries:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(RCurl)</code></pre></div>
+<pre><code>## Loading required package: bitops</code></pre>
+<p>First, let’s load the data directly from the source:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">data_url &lt;-<span class="st"> 'https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data'</span>
+original &lt;-<span class="st"> </span><span class="kw">getURL</span>(data_url) 
+df &lt;-<span class="st"> </span><span class="kw">read.csv</span>(<span class="dt">text=</span>original, <span class="dt">header=</span><span class="ot">FALSE</span>, <span class="dt">stringsAsFactors=</span><span class="ot">FALSE</span>)
+<span class="kw">head</span>(df)</code></pre></div>
+<pre><code>##   V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20
+## 1  p  x  s  n  t  p  f  c  n   k   e   e   s   s   w   w   p   w   o   p
+## 2  e  x  s  y  t  a  f  c  b   k   e   c   s   s   w   w   p   w   o   p
+## 3  e  b  s  w  t  l  f  c  b   n   e   c   s   s   w   w   p   w   o   p
+## 4  p  x  y  w  t  p  f  c  n   n   e   e   s   s   w   w   p   w   o   p
+## 5  e  x  s  g  f  n  f  w  b   k   t   e   s   s   w   w   p   w   o   e
+## 6  e  x  y  y  t  a  f  c  b   n   e   c   s   s   w   w   p   w   o   p
+##   V21 V22 V23
+## 1   k   s   u
+## 2   n   n   g
+## 3   n   n   m
+## 4   k   s   u
+## 5   n   a   g
+## 6   k   n   g</code></pre>
+<p>Fill in the column names and subset to just a handful:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">colnames</span>(df) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">'poisonous'</span>,
+                  <span class="st">'cap_shape'</span>, 
+                  <span class="st">'cap_surface'</span>, 
+                  <span class="st">'cap_color'</span>, 
+                  <span class="st">'bruises'</span>, 
+                  <span class="st">'odor'</span>, 
+                  <span class="st">'gill_attachment'</span>, 
+                  <span class="st">'gill_spacing'</span>, 
+                  <span class="st">'gill_size'</span>, 
+                  <span class="st">'gill_color'</span>, 
+                  <span class="st">'stalk_shape'</span>, 
+                  <span class="st">'stalk_root'</span>, 
+                  <span class="st">'stalk_surface_above_ring'</span>, 
+                  <span class="st">'stalk_surface_below_ring'</span>, 
+                  <span class="st">'stalk_color_above_ring'</span>, 
+                  <span class="st">'stalk_color_below_ring'</span>, 
+                  <span class="st">'veil_type'</span>, 
+                  <span class="st">'veil_color'</span>, 
+                  <span class="st">'ring_number'</span>, 
+                  <span class="st">'ring_type'</span>, 
+                  <span class="st">'spore_print_color'</span>, 
+                  <span class="st">'population'</span>, 
+                  <span class="st">'habitat'</span>)
+
+cols &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">'poisonous'</span>, <span class="st">'bruises'</span>, <span class="st">'gill_size'</span>, <span class="st">'ring_number'</span>)
+df &lt;-<span class="st"> </span>df[cols]
+<span class="kw">head</span>(df)</code></pre></div>
+<pre><code>##   poisonous bruises gill_size ring_number
+## 1         p       t         n           o
+## 2         e       t         b           o
+## 3         e       t         b           o
+## 4         p       t         n           o
+## 5         e       f         b           o
+## 6         e       t         b           o</code></pre>
+<p>The remaining task is the de-abbreviate the data, converting each entry to a meaningful designation.</p>
+<p>One way to do this would be to use <code>gsub()</code>. However, a custom function might be able to make the job a little easier and a little cleaner.</p>
+<p><code>gsub_map()</code> accepts a string and a mapping of pattern-replacements, performing multiple <code>gsub()</code> operations together:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">gsub_map &lt;-<span class="st"> </span><span class="cf">function</span>(s, mapping) {
+    <span class="co"># Accepts a mapping of pattern-replacements on a string s, allowing more </span>
+    <span class="co"># compact operations involving mutliple substitutions on the same string</span>
+    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="op">:</span><span class="kw">length</span>(mapping)) {
+        pattern &lt;-<span class="st"> </span><span class="kw">names</span>(mapping[i])
+        replacement &lt;-<span class="st"> </span>mapping[i]
+        s &lt;-<span class="st"> </span><span class="kw">gsub</span>(pattern, replacement, s)
+    }
+    <span class="kw">return</span>(s)
+}
+
+<span class="co"># Example</span>
+<span class="kw">gsub_map</span>(<span class="st">'foo bar'</span>, <span class="kw">list</span>(<span class="dt">foo=</span><span class="st">'foo1'</span>, <span class="dt">bar=</span><span class="st">'bar1'</span>))</code></pre></div>
+<pre><code>## [1] &quot;foo1 bar1&quot;</code></pre>
+<p>Using <code>sapply()</code> to apply to function to each row in the columns:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df<span class="op">$</span>poisonous &lt;-<span class="st"> </span><span class="kw">sapply</span>(df<span class="op">$</span>poisonous, gsub_map, <span class="kw">list</span>(<span class="dt">e=</span><span class="st">'edible'</span>, <span class="dt">p=</span><span class="st">'poisonous'</span>))
+df<span class="op">$</span>bruises &lt;-<span class="st"> </span><span class="kw">sapply</span>(df<span class="op">$</span>bruises, gsub_map, <span class="kw">list</span>(<span class="dt">t=</span><span class="st">'TRUE'</span>, <span class="dt">f=</span><span class="st">'FALSE'</span>))
+df<span class="op">$</span>gill_size &lt;-<span class="st"> </span><span class="kw">sapply</span>(df<span class="op">$</span>gill_size, gsub_map, <span class="kw">list</span>(<span class="dt">b=</span><span class="st">'broad'</span>, <span class="dt">n=</span><span class="st">'narrow'</span>))
+df<span class="op">$</span>ring_number &lt;-<span class="st"> </span><span class="kw">sapply</span>(df<span class="op">$</span>ring_number, gsub_map, <span class="kw">list</span>(<span class="dt">n=</span><span class="st">'0'</span>, <span class="st">'o'</span>=<span class="st">'1'</span>, <span class="st">'t'</span>=<span class="st">'2'</span>))
+
+<span class="kw">head</span>(df)</code></pre></div>
+<pre><code>##   poisonous bruises gill_size ring_number
+## 1 poisonous    TRUE    narrow           1
+## 2    edible    TRUE     broad           1
+## 3    edible    TRUE     broad           1
+## 4 poisonous    TRUE    narrow           1
+## 5    edible   FALSE     broad           1
+## 6    edible    TRUE     broad           1</code></pre>
+<p>Finally, convert to proper R data types where applicable:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">df<span class="op">$</span>bruises &lt;-<span class="st"> </span><span class="kw">as.logical</span>(df<span class="op">$</span>bruises)
+df<span class="op">$</span>ring_number &lt;-<span class="st"> </span><span class="kw">as.integer</span>(df<span class="op">$</span>ring_number)
+
+<span class="kw">head</span>(df)</code></pre></div>
+<pre><code>##   poisonous bruises gill_size ring_number
+## 1 poisonous    TRUE    narrow           1
+## 2    edible    TRUE     broad           1
+## 3    edible    TRUE     broad           1
+## 4 poisonous    TRUE    narrow           1
+## 5    edible   FALSE     broad           1
+## 6    edible    TRUE     broad           1</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">sapply</span>(df, class)</code></pre></div>
+<pre><code>##   poisonous     bruises   gill_size ring_number 
+## &quot;character&quot;   &quot;logical&quot; &quot;character&quot;   &quot;integer&quot;</code></pre>
+    </section>
+  </div>
+</div>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+</body>
+</html>
