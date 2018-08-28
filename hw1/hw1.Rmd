@@ -1,6 +1,6 @@
 ---
-title: "Homework No. 1"
-author: "DATA-607 // Ben Horvath"
+title: "DATA 607---Homework No. 1"
+author: "Ben Horvath"
 date: "August 28, 2018"
 output:
   html_document:
@@ -27,11 +27,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Load libraries:
 
-```{r, warning=FALSE}
+```{r, warning=FALSE, message=FALSE}
 library(RCurl)
 ```
 
-First, let's load the data directly from the source:
+First, let's load the data directly from the source (though a copy is saved in the `./data/` directory):
 
 ```{r}
 data_url <- 'https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data'
@@ -40,7 +40,7 @@ df <- read.csv(text=original, header=FALSE, stringsAsFactors=FALSE)
 head(df)
 ```
 
-Fill in the column names and subset to just a handful:
+Fill in the column names and subset just a handful:
 
 ```{r}
 colnames(df) <- c('poisonous',
@@ -74,14 +74,15 @@ head(df)
 
 The remaining task is the de-abbreviate the data, converting each entry to a meaningful designation. 
 
-One way to do this would be to use `gsub()`. However, a custom function might be able to make the job a little easier and a little cleaner. 
+One way to do this would be to use many `gsub()` commands. However, a custom function that makes multiple substitutions at one go might make the job a little cleaner and easier to read.
 
-`gsub_map()` accepts a string and a mapping of pattern-replacements, performing multiple `gsub()` operations together:
+The function `gsub_map()` accepts a string and a mapping (named list) of pattern-replacements, performing multiple `gsub()` operations together:
 
 ```{r}
 gsub_map <- function(s, mapping) {
     # Accepts a mapping of pattern-replacements on a string s, allowing more 
     # compact operations involving mutliple substitutions on the same string
+    # sequentially
     for (i in 1:length(mapping)) {
         pattern <- names(mapping[i])
         replacement <- mapping[i]
@@ -94,7 +95,7 @@ gsub_map <- function(s, mapping) {
 gsub_map('foo bar', list(foo='foo1', bar='bar1'))
 ```
 
-Using `sapply()` to apply to function to each row in the columns:
+Using `sapply()` to apply to function to each row of the columns:
 
 ```{r}
 df$poisonous <- sapply(df$poisonous, gsub_map, list(e='edible', p='poisonous'))
@@ -105,7 +106,7 @@ df$ring_number <- sapply(df$ring_number, gsub_map, list(n='0', 'o'='1', 't'='2')
 head(df)
 ```
 
-Finally, convert to proper R data types where applicable:
+Finally, convert to proper R data types:
 
 ```{r}
 df$bruises <- as.logical(df$bruises)
