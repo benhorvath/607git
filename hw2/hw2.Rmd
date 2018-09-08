@@ -1,0 +1,107 @@
+---
+title: "DATA 607---Homework No. 2"
+author: "Ben Horvath"
+date: "September 9, 2018"
+output:
+  html_document:
+    theme: null
+    css: ../static/architect.css
+    template: ../static/architect.html
+    pandoc_args: [
+      "--mathjax", "",
+      "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+  pdf_document:
+    keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+  \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load general libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+# Prequisites: Generate Data and Create SQL Table
+
+The `generate_reviews.R` script generates a CSV of five people's review of six movies. The `create_install.sql` script creates a SQL table based on that CSV. Compiling this Rmarkdown is dependent on successfully completing these steps (or simply run `main.sh` to set everything up).
+
+
+
+# Pull from SQL
+
+Open a connection to the `bmh607` PostgreSQL database, pull out the table, and close connection:
+
+```{r, warning=FALSE, message=FALSE}
+library(RPostgreSQL)
+
+drv <- dbDriver('PostgreSQL')
+con <- dbConnect(drv, host='localhost', dbname='bmh607')
+ 
+q <- 'SELECT * FROM bmh_movies;'
+df <- dbGetQuery(con, q)
+
+head(df)
+
+str(df)
+
+# be nice to the database
+dbDisconnect(con)
+```
+
+
+
+# Inspecting the Data
+
+Below is a boxplot of the distribution of scores for each movie.
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(df, aes(x=movie, y=score)) + 
+  geom_boxplot()
+```
+
+_Slender Man_ had the highest average score of 3 and _BlacKkKlansman_ had the lowest average score of 1---contrary to the actual box office returns! The latter film also had the lowest spread of scores, meaning all reviewers agreed it was a terrible to below-average movie.
+
+Concensus was not so easy with _Crazy Rich Asians_, however. The majority of reviewers considered it below average, but one considered it `average' and another considered it superb.
+
+```{r, warning=FALSE, message=FALSE}
+df %>% filter(movie == 'Crazy Rich Asians')
+```
+
+It was easier to agree on _Slender Man_ and _The Nun_, though two outlying reviewers rated both a 5.
+
+## A Tangent: Notch Plots
+
+While looking at the documention for `geom_boxplot()` I noticed the argument `notch`. It's not extremely helpful in a dataset with $n = 30$ but I imagine it could elucidate distributions better than a box plot when dealing with larger data. Pretty cool!
+
+(Though it appears to be generating an error.)
+
+```{r}
+ggplot(df, aes(x=movie, y=score)) + 
+  geom_boxplot(notch=TRUE)
+```
+
+
+## Reviewing the Reviewers
+
+It might also be instructive to examine the reviewers themselves. Which ones are delighted by almost any film? Which ones are especially critically?
+
+```{r, warning=FALSE, message=FALSE}
+ggplot(df, aes(x=reviewer, y=score)) + 
+  geom_boxplot()
+```
+
+There is a tremendous amount of variation in taste. Alexis hates all of the films---maybe she's more of a book reader? Dina, too, is a fairly critical movie watcher, with mean score of 1.5 and low variance. Zach didn't really enjoy many of the films either.
+
+Claire appears to be the most discerning, with the widest spread of scores. She generally enjoyed the films, but was not above rating them below average, or superb. Patrick considered most of the films average and only average.
+
