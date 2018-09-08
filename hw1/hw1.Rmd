@@ -3,6 +3,8 @@ title: "DATA 607---Homework No. 1"
 author: "Ben Horvath"
 date: "August 28, 2018"
 output:
+  pdf_document:
+    keep_tex: yes
   html_document:
     theme: null
     css: ../static/architect.css
@@ -10,8 +12,6 @@ output:
     pandoc_args: [
       "--mathjax", "",
       "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
-  pdf_document:
-    keep_tex: yes
 fontsize: 11pt
 geometry: null
 fontfamily: mathpazo
