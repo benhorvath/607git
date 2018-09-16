@@ -1,0 +1,115 @@
+---
+title: "Chess Tournement Data"
+author: "Ben Horvath"
+date: "September 16, 2018"
+output:
+    html_document:
+        theme: null
+        css: ../static/architect.css
+        template: ../static/architect.html
+        pandoc_args: [
+            "--mathjax", "",
+            "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+    pdf_document:
+        keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+    \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load general libraries
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(magrittr)
+library(stringr)
+library(tidyr)
+```
+
+# Introduction
+
+The purpose this document is to describe the process of importing the data in `tournamentinfo.txt` and making it amenable to R.
+
+RegEx always feels slightly dirty to me---like a last resort---so I'd like to minimize its use. Even minor changes to the source data can ruin RegEx matching, and even the most thoughtful RegEx can behave unexpectedly.
+
+Instead I'm going to try to make R see the the data 'by itself' as much as possible. Hopefully this will make it easier to understand the code, RegEx being notoriously hard to read. And hopefully this makes it more robust to changes, such as columns added or discarded, and thus easier to maintain.
+
+
+
+# Loading the Raw Text
+
+Sometimes it is easier to treat messy data as _lines of text_, instead of trying to force them into a vector-dataframe form right out of the gate.
+
+First, run each line in a for loop, categorizing them by simple RegEx expressions. One reason this data table is tricky is that the relevant data is spread over two lines. I will refer to the first line in a player row as 'player row 1' and the second as 'player row 2.' After I seperate out the relevant lines from the table into dataframes, I'll combine the pieces later for further manipulation.
+
+The first kind of line begins with a sequence of digits surrounded by white space, the player's ID. The second kind starts with the player's home state---two capital letters flanked by white space.
+
+```{r, warning=FALSE, message=FALSE}
+raw <- readLines('tournamentinfo.txt')
+
+player_row1 <- list()
+player_row2 <- list()
+
+for (line in raw) {
+    if (str_detect(line, '^\\s+\\d+\\s+') == TRUE) {
+        player_row1 <- c(player_row1, line)
+    }
+    else if (str_detect(line, '^\\s+[A-Z]{2}\\s+') == TRUE) {
+        player_row2 <- c(player_row2, line)
+    }
+}
+```
+
+
+
+# Clean Player Data
+
+Now to prepare `player_row1`, currently a list of messy text, into a dataframe of clean text.
+
+```{r, warning=FALSE, message=FALSE}
+# USE THIS TEMPLATE of player_row2_df
+# player_row2_df <- data.frame(unlist(unlist(player_row2)))
+# df2_colnames <- c('player_id', 'player', 'total_score', 'round_1', 'round_2',
+#                   'round_3', 'round_4', 'round_5', 'round_6', 'round_7', 'nulls')
+# 
+# player_row2_df <- player_row2_df %>%
+#     separate(colnames(player_row2_df)[1], into=df2_colnames, sep='\\|') %>%
+#     select(-nulls) %>%  # remove column of nulls
+#     mutate_all(str_squish) %>%
+#     mutate(player_id=as.integer(player_id), total_score=as.numeric(total_score))
+# row.names(player_row2_df) <- NULL
+# 
+# head(player_row2_df)
+```
+
+Next is to prepare 'player row 2':
+
+```{r, warning=FALSE, message=FALSE}
+df2_colnames <- c('state', 'ident', 'n', 'x_1', 'x_2', 'x_3', 'x_4', 'x_5', 'x_6',
+                  'x_7', 'nulls')
+
+player_row2_df <- data.frame(unlist(unlist(player_row2)))
+player_row2_df <- player_row2_df %>%
+    separate(colnames(player_row2_df)[1], into=df2_colnames, sep='\\|') %>%
+    select(-nulls) %>%  # remove column of nulls
+    mutate_all(str_squish)
+row.names(player_row2_df) <- NULL
+
+head(player_row2_df)
+```
+
+Bringing it together:
+
+```{r}
+# df <- cbind(player_row1_df, player_row2_df)
+# head(df)
+# str(df)
+```

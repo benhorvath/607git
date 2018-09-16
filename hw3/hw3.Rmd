@@ -1,0 +1,228 @@
+---
+title: "DATA 607---Homework No. 3"
+author: "Ben Horvath"
+date: "September 16, 2018"
+output:
+  html_document:
+    theme: null
+    css: ../static/architect.css
+    template: ../static/architect.html
+    pandoc_args: [
+      "--mathjax", "",
+      "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+  pdf_document:
+    keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+  \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(stringr)
+```
+
+# Problem 3
+
+> Copy the introductory example. The vector `name` stores the extracted names.
+
+```{r}
+raw.data <- '555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert'
+```
+
+> 1. Use the tools of this chapter to rearrange the vector so that all elements conform to the standard `first_name last_name`.
+
+First, let's try to extract just the names into a character vector where each element corresponds to a full name. This is somewhat tricky as there is no delimiter seperating names from phone numbers.
+
+## Extracting Names
+
+As a first attempt, let's try a simple solution, extracting all alphabetic characters:
+
+```{r}
+unlist(str_extract_all(raw.data, '[[:alpha:]]'))
+```
+
+This does indeed return every alphabetic character, but not quite the full names as we want. To rectify this, let's specify that each match must be at least 2 characters or longer:
+
+```{r}
+unlist(str_extract_all(raw.data, '[[:alpha:]]{2,}'))
+```
+
+This is much closer, but we want to keep the titles and first/last names together. Let's specify not to 'break' on spaces by including a space along with the alphabetic characters:
+
+```{r}
+unlist(str_extract_all(raw.data, '[[:alpha:] ]{2,}'))
+```
+
+An improvement, but it still 'breaking' the words on the puntuation within each name: add comma and period with the space:
+
+```{r}
+name <- unlist(str_extract_all(raw.data, '[[:alpha:],. ]{2,}'))
+name
+```
+
+Perfect! `name` can be described as all sequences of characters in `raw.data` that contain alphabetic characters + period + comma + space that contain at least two or more characters.
+
+## Standardizing `name`
+
+Now to the core of the question. 
+
+Normally, I would probably detect if a comma is present, and if so, split the string on the comma with `strsplit()` and `rev()` the resulting strings. 
+
+Instead, I'll attampt to do this with RegEx and `stringr`.
+
+Though not mentioned in the text, RegEx has a feature called matching groups, that enumerates pattern matches. This is apparent in `str_match()`:
+
+```{r}
+str_match('Simpson, Homer', '(\\w+),\\s(\\w+)')
+```
+
+Parentheses are used to break up the pattern into groups, in this case, into two words `(\\w+)`. The resulting matrix allows access to these groups via subscripts.
+
+We can use these groups with `str_replace()` to replace the words such that 'last_name, first_name' becomes 'first_name last_name':
+
+```{r}
+str_replace('Simpson, Homer', '(\\w+),\\s(\\w+)', '\\2 \\1')
+```
+
+Mr. Burns's name is more challenging because of the first name initial, but can be solved along similar lines:
+
+```{r}
+str_replace('Burns, C. Montgomery', '(\\w+),\\s(\\w.)\\s(\\w+)', '\\2 \\3 \\1')
+```
+
+## Pulling It Altogether
+
+Let's construct a function that converts any name string to a standardized format, and that can then be applied to `name`:
+
+```{r}
+standardize_name <- function(s) {
+  last_first <- '^(\\w+),\\s(\\w+)$'
+  last_first_init <-  '^(\\w+),\\s(\\w.)\\s(\\w+)$'
+
+  s <- str_trim(s)
+  
+  # Test for last_name, first_name
+  if (str_detect(s, last_first) == TRUE) {
+    standard <- str_replace(s, last_first, '\\2 \\1')
+  } 
+  # Test for last_name, first_initial middle_name
+  else if (str_detect(s, last_first_init) == TRUE) {
+    standard <- str_replace(s, last_first_init, '\\2 \\3 \\1')
+  }
+  else {
+    standard <- s
+  }
+  return(standard)
+}
+```
+
+Test to make sure the function works as desired:
+
+```{r}
+standardize_name('Simpson, Homer')
+standardize_name('Burns, C. Montgomery')
+standardize_name('Lisa Simpson')
+```
+
+Finally---apply to entire `name` vector:
+
+```{r}
+lapply(name, FUN=standardize_name)
+```
+
+
+
+> 2. Construct a logical vector indicating whether a character has a title (i.e., _Rev._ and _Dr._).
+
+Using `str_detect()` and the pipe operator:
+
+```{r}
+str_detect(name, 'Dr.|Rev.')
+```
+
+
+
+> 3. Construct a logical vector indicating whether a character has a second name.
+
+Mr. Burns is the only one with a second name in this list, and it is observable as a single capital alphabetic character and a period, followed by a space:
+
+```{r}
+str_detect(name, '[A-Z].\\s')
+```
+
+
+
+# Problem 4
+
+> Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.
+
+> 1. `[0-9]+\\$`
+
+This matches a sequence of numbers (of any size) that ends with a dollar sign (note the double backslash before $).
+
+```{r}
+str_extract_all('1$', '[0-9]+\\$')
+str_extract_all('1000000$ is a lot of money', '[0-9]+\\$')
+```
+
+> 2. `\\b[a-z]{1,4}\\b`
+
+This command will return every sequence that starts with a lowercase letter, is composed of lowercase letters, and is between 1 and 4 characters in length. The command below should only return _test_ and _for_ as they are the only words that meet all the criteria.
+
+```{r}
+str_extract_all('test test1 amalgamation for Ben eB4n', '\\b[a-z]{1,4}\\b')
+```
+
+> 3. `.*?\\.txt$`
+
+This matches strings resembling files with the extension `.txt`. The first two commands will return a match and the third will not:
+
+```{r}
+str_extract('notes.txt', '.*?\\.txt$')
+str_extract('KKK*8293ufskf.txt', '.*?\\.txt$')
+str_extract('txt.exe', '.*?\\.txt$')
+```
+
+> 4. `\\d{2}/\\d{2}/\\d{4}`
+
+This is a date format, like '09/08/2018' for September 8, 2018, or (perhaps if European) for August 9, 2018. The first should return a match, the second will not.
+
+```{r}
+str_extract('09/08/2018', '\\d{2}/\\d{2}/\\d{4}')
+str_extract('2018/09/08', '\\d{2}/\\d{2}/\\d{4}')
+```
+
+> 5. `<(.+?)>.+?</\\1>`
+
+This looks like it would match HTML or similar style tags (without attributes like `href`), like:
+
+```{r}
+str_extract('<h1>Trump Shocks Nation</h1>', '<(.+?)>.+?</\\1>')
+str_extract('<p>The president\'s decline continues this week as...</p>', '<(.+?)>.+?</\\1>')
+str_extract('<a href="google.com">Google</a>', '<(.+?)>.+?</\\1>')
+```
+
+
+
+# Problem 9
+
+> The following code hides a secret message. Crack it with `R` and regular expressions.
+
+Try out different combinations of character classes until one works:
+
+```{r}
+msg <- 'clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr'
+str_c(unlist(str_extract_all(msg, '[[:upper:].]')), collapse='')
+```
+
+:)
