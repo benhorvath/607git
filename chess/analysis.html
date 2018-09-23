@@ -12,9 +12,9 @@
 
 <meta name="author" content="Ben Horvath" />
 
-<meta name="date" content="2018-09-16" />
+<meta name="date" content="2018-09-23" />
 
-<title>Chess Tournement Data</title>
+<title>Cleaning Chess Tournement Data with Minimal RegEx</title>
 
 
 
@@ -503,83 +503,341 @@ content: none;
 <body>
 <header>
 <div class="inner">
-<h1 class="title toc-ignore">Chess Tournement Data</h1>
+<h1 class="title toc-ignore">Cleaning Chess Tournement Data with Minimal RegEx</h1>
 <h3 class="author">Ben Horvath</h3>
-<h3 class="date">September 16, 2018</h3>
+<h3 class="date">September 23, 2018</h3>
 </div>
 </header>
 <div id="content-wrapper">
   <div class="inner clearfix">
     <section id="main-content">
-<p>Load general libraries</p>
+<p>Load general libraries:</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">library</span>(dplyr)</a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">library</span>(magrittr)</a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">library</span>(stringr)</a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="kw">library</span>(tidyr)</a></code></pre></div>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="kw">library</span>(stringr)</a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">library</span>(tidyr)</a></code></pre></div>
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>The purpose this document is to describe the process of importing the data in <code>tournamentinfo.txt</code> and making it amenable to R.</p>
-<p>RegEx always feels slightly dirty to me—like a last resort—so I’d like to minimize its use. Even minor changes to the source data can ruin RegEx matching, and even the most thoughtful RegEx can behave unexpectedly.</p>
-<p>Instead I’m going to try to make R see the the data ‘by itself’ as much as possible. Hopefully this will make it easier to understand the code, RegEx being notoriously hard to read. And hopefully this makes it more robust to changes, such as columns added or discarded, and thus easier to maintain.</p>
+<p>The data is highly formatted, using sequences of pipe and hyphen characters as column and row delimiters respectively, and splits each record across two lines. Below are the first few records of data:</p>
+<pre><code>##  [1] &quot;-----------------------------------------------------------------------------------------&quot; 
+##  [2] &quot; Pair | Player Name                     |Total|Round|Round|Round|Round|Round|Round|Round| &quot;
+##  [3] &quot; Num  | USCF ID / Rtg (Pre-&gt;Post)       | Pts |  1  |  2  |  3  |  4  |  5  |  6  |  7  | &quot;
+##  [4] &quot;-----------------------------------------------------------------------------------------&quot; 
+##  [5] &quot;    1 | GARY HUA                        |6.0  |W  39|W  21|W  18|W  14|W   7|D  12|D   4|&quot; 
+##  [6] &quot;   ON | 15445895 / R: 1794   -&gt;1817     |N:2  |W    |B    |W    |B    |W    |B    |W    |&quot; 
+##  [7] &quot;-----------------------------------------------------------------------------------------&quot; 
+##  [8] &quot;    2 | DAKSHESH DARURI                 |6.0  |W  63|W  58|L   4|W  17|W  16|W  20|W   7|&quot; 
+##  [9] &quot;   MI | 14598900 / R: 1553   -&gt;1663     |N:2  |B    |W    |B    |W    |B    |W    |B    |&quot; 
+## [10] &quot;-----------------------------------------------------------------------------------------&quot; 
+## [11] &quot;    3 | ADITYA BAJAJ                    |6.0  |L   8|W  61|W  25|W  21|W  11|W  13|W  12|&quot; 
+## [12] &quot;   MI | 14959604 / R: 1384   -&gt;1640     |N:2  |W    |B    |W    |B    |W    |B    |W    |&quot; 
+## [13] &quot;-----------------------------------------------------------------------------------------&quot; 
+## [14] &quot;    4 | PATRICK H SCHILLING             |5.5  |W  23|D  28|W   2|W  26|D   5|W  19|D   1|&quot; 
+## [15] &quot;   MI | 12616049 / R: 1716   -&gt;1744     |N:2  |W    |B    |W    |B    |W    |B    |B    |&quot; 
+## [16] &quot;-----------------------------------------------------------------------------------------&quot;</code></pre>
+<p>Each record is a player in the chess tournament. Records include player ID, player state, total points, pre- and post-tournament rating, outcome of all rounds (seven total), the opponents’ IDs for each match, and the color of the player that match.</p>
+<p>The end goal is a clean dataframe with player name, player state, total points, pre-tournament rating, and average pre-tournament rating of opponents.</p>
+<div id="aproach" class="section level2">
+<h2>Aproach</h2>
+<p>RegEx always feels slightly dirty to me—like a last resort—so I’d like to minimize its use. Even minor changes to the source data can ruin RegEx matching, even the most thoughtful RegEx can behave unexpectedly, and besides, RegEx are notoriously hard to read.</p>
+<p>Instead I’m going to try to make R see the the data ‘by itself’ as much as possible. Hopefully this will make it easier to understand the code, make it more robust to changes such as columns added or discarded, and thus easier to maintain.</p>
+</div>
 </div>
 <div id="loading-the-raw-text" class="section level1">
 <h1>Loading the Raw Text</h1>
-<p>Sometimes it is easier to treat messy data as <em>lines of text</em>, instead of trying to force them into a vector-dataframe form right out of the gate.</p>
+<p>Rather than trying to force this messy text data into vector-dataframe form right out of the gate, I’m going to start by treating it as <em>lines of text</em>.</p>
 <p>First, run each line in a for loop, categorizing them by simple RegEx expressions. One reason this data table is tricky is that the relevant data is spread over two lines. I will refer to the first line in a player row as ‘player row 1’ and the second as ‘player row 2.’ After I seperate out the relevant lines from the table into dataframes, I’ll combine the pieces later for further manipulation.</p>
 <p>The first kind of line begins with a sequence of digits surrounded by white space, the player’s ID. The second kind starts with the player’s home state—two capital letters flanked by white space.</p>
-<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" data-line-number="1">raw &lt;-<span class="st"> </span><span class="kw">readLines</span>(<span class="st">'tournamentinfo.txt'</span>)</a>
-<a class="sourceLine" id="cb2-2" data-line-number="2"></a>
-<a class="sourceLine" id="cb2-3" data-line-number="3">player_row1 &lt;-<span class="st"> </span><span class="kw">list</span>()</a>
-<a class="sourceLine" id="cb2-4" data-line-number="4">player_row2 &lt;-<span class="st"> </span><span class="kw">list</span>()</a>
-<a class="sourceLine" id="cb2-5" data-line-number="5"></a>
-<a class="sourceLine" id="cb2-6" data-line-number="6"><span class="cf">for</span> (line <span class="cf">in</span> raw) {</a>
-<a class="sourceLine" id="cb2-7" data-line-number="7">    <span class="cf">if</span> (<span class="kw">str_detect</span>(line, <span class="st">'^</span><span class="ch">\\</span><span class="st">s+</span><span class="ch">\\</span><span class="st">d+</span><span class="ch">\\</span><span class="st">s+'</span>) <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) {</a>
-<a class="sourceLine" id="cb2-8" data-line-number="8">        player_row1 &lt;-<span class="st"> </span><span class="kw">c</span>(player_row1, line)</a>
-<a class="sourceLine" id="cb2-9" data-line-number="9">    }</a>
-<a class="sourceLine" id="cb2-10" data-line-number="10">    <span class="cf">else</span> <span class="cf">if</span> (<span class="kw">str_detect</span>(line, <span class="st">'^</span><span class="ch">\\</span><span class="st">s+[A-Z]{2}</span><span class="ch">\\</span><span class="st">s+'</span>) <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) {</a>
-<a class="sourceLine" id="cb2-11" data-line-number="11">        player_row2 &lt;-<span class="st"> </span><span class="kw">c</span>(player_row2, line)</a>
-<a class="sourceLine" id="cb2-12" data-line-number="12">    }</a>
-<a class="sourceLine" id="cb2-13" data-line-number="13">}</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1">raw &lt;-<span class="st"> </span><span class="kw">readLines</span>(<span class="st">'tournamentinfo.txt'</span>)</a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">player_row1 &lt;-<span class="st"> </span><span class="kw">list</span>()</a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">player_row2 &lt;-<span class="st"> </span><span class="kw">list</span>()</a>
+<a class="sourceLine" id="cb3-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="cf">for</span> (line <span class="cf">in</span> raw) {</a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">    <span class="cf">if</span> (<span class="kw">str_detect</span>(line, <span class="st">'^</span><span class="ch">\\</span><span class="st">s+</span><span class="ch">\\</span><span class="st">d+</span><span class="ch">\\</span><span class="st">s+'</span>) <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) {</a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">        player_row1 &lt;-<span class="st"> </span><span class="kw">c</span>(player_row1, line)</a>
+<a class="sourceLine" id="cb3-9" data-line-number="9">    }</a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">    <span class="cf">else</span> <span class="cf">if</span> (<span class="kw">str_detect</span>(line, <span class="st">'^</span><span class="ch">\\</span><span class="st">s+[A-Z]{2}</span><span class="ch">\\</span><span class="st">s+'</span>) <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) {</a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">        player_row2 &lt;-<span class="st"> </span><span class="kw">c</span>(player_row2, line)</a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">    }</a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">}</a></code></pre></div>
 </div>
-<div id="clean-player-data" class="section level1">
-<h1>Clean Player Data</h1>
+<div id="clean-tournament-data" class="section level1">
+<h1>Clean Tournament Data</h1>
 <p>Now to prepare <code>player_row1</code>, currently a list of messy text, into a dataframe of clean text.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="co"># USE THIS TEMPLATE of player_row2_df</span></a>
-<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="co"># player_row2_df &lt;- data.frame(unlist(unlist(player_row2)))</span></a>
-<a class="sourceLine" id="cb3-3" data-line-number="3"><span class="co"># df2_colnames &lt;- c('player_id', 'player', 'total_score', 'round_1', 'round_2',</span></a>
-<a class="sourceLine" id="cb3-4" data-line-number="4"><span class="co">#                   'round_3', 'round_4', 'round_5', 'round_6', 'round_7', 'nulls')</span></a>
-<a class="sourceLine" id="cb3-5" data-line-number="5"><span class="co"># </span></a>
-<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="co"># player_row2_df &lt;- player_row2_df %&gt;%</span></a>
-<a class="sourceLine" id="cb3-7" data-line-number="7"><span class="co">#     separate(colnames(player_row2_df)[1], into=df2_colnames, sep='\\|') %&gt;%</span></a>
-<a class="sourceLine" id="cb3-8" data-line-number="8"><span class="co">#     select(-nulls) %&gt;%  # remove column of nulls</span></a>
-<a class="sourceLine" id="cb3-9" data-line-number="9"><span class="co">#     mutate_all(str_squish) %&gt;%</span></a>
-<a class="sourceLine" id="cb3-10" data-line-number="10"><span class="co">#     mutate(player_id=as.integer(player_id), total_score=as.numeric(total_score))</span></a>
-<a class="sourceLine" id="cb3-11" data-line-number="11"><span class="co"># row.names(player_row2_df) &lt;- NULL</span></a>
-<a class="sourceLine" id="cb3-12" data-line-number="12"><span class="co"># </span></a>
-<a class="sourceLine" id="cb3-13" data-line-number="13"><span class="co"># head(player_row2_df)</span></a></code></pre></div>
-<p>Next is to prepare ‘player row 2’:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" data-line-number="1">df2_colnames &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">'state'</span>, <span class="st">'ident'</span>, <span class="st">'n'</span>, <span class="st">'x_1'</span>, <span class="st">'x_2'</span>, <span class="st">'x_3'</span>, <span class="st">'x_4'</span>, <span class="st">'x_5'</span>, <span class="st">'x_6'</span>,</a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">                  <span class="st">'x_7'</span>, <span class="st">'nulls'</span>)</a>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" data-line-number="1">df1_colnames &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">'player_id'</span>, <span class="st">'player_name'</span>, <span class="st">'total_points'</span>, <span class="st">'match_1'</span>, <span class="st">'match_2'</span>,</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">                  <span class="st">'match_3'</span>, <span class="st">'match_4'</span>, <span class="st">'match_5'</span>, <span class="st">'match_6'</span>, <span class="st">'match_7'</span>)</a>
 <a class="sourceLine" id="cb4-3" data-line-number="3"></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">player_row2_df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="kw">unlist</span>(<span class="kw">unlist</span>(player_row2)))</a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">player_row2_df &lt;-<span class="st"> </span>player_row2_df <span class="op">%&gt;%</span></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="st">    </span><span class="kw">separate</span>(<span class="kw">colnames</span>(player_row2_df)[<span class="dv">1</span>], <span class="dt">into=</span>df2_colnames, <span class="dt">sep=</span><span class="st">'</span><span class="ch">\\</span><span class="st">|'</span>) <span class="op">%&gt;%</span></a>
-<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="st">    </span><span class="kw">select</span>(<span class="op">-</span>nulls) <span class="op">%&gt;%</span><span class="st">  </span><span class="co"># remove column of nulls</span></a>
-<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="st">    </span><span class="kw">mutate_all</span>(str_squish)</a>
-<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="kw">row.names</span>(player_row2_df) &lt;-<span class="st"> </span><span class="ot">NULL</span></a>
-<a class="sourceLine" id="cb4-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb4-11" data-line-number="11"><span class="kw">head</span>(player_row2_df)</a></code></pre></div>
-<pre><code>##   state                     ident   n x_1 x_2 x_3 x_4 x_5 x_6 x_7
-## 1    ON 15445895 / R: 1794 -&gt;1817 N:2   W   B   W   B   W   B   W
-## 2    MI 14598900 / R: 1553 -&gt;1663 N:2   B   W   B   W   B   W   B
-## 3    MI 14959604 / R: 1384 -&gt;1640 N:2   W   B   W   B   W   B   W
-## 4    MI 12616049 / R: 1716 -&gt;1744 N:2   W   B   W   B   W   B   B
-## 5    MI 14601533 / R: 1655 -&gt;1690 N:2   B   W   B   W   B   W   B
-## 6    OH 15055204 / R: 1686 -&gt;1687 N:3   W   B   W   B   B   W   B</code></pre>
+<a class="sourceLine" id="cb4-4" data-line-number="4">player_row1_df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="kw">unlist</span>(<span class="kw">unlist</span>(player_row1)))</a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">player_row1_df &lt;-<span class="st"> </span>player_row1_df <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="st">    </span><span class="kw">separate</span>(<span class="kw">colnames</span>(player_row1_df)[<span class="dv">1</span>], <span class="dt">into=</span>df1_colnames, <span class="dt">sep=</span><span class="st">'</span><span class="ch">\\</span><span class="st">|'</span>) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb4-7" data-line-number="7"><span class="st">    </span><span class="kw">mutate_all</span>(str_squish)</a>
+<a class="sourceLine" id="cb4-8" data-line-number="8"><span class="kw">row.names</span>(player_row1_df) &lt;-<span class="st"> </span><span class="ot">NULL</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9"></a>
+<a class="sourceLine" id="cb4-10" data-line-number="10"><span class="kw">head</span>(player_row1_df)</a></code></pre></div>
+<pre><code>##   player_id         player_name total_points match_1 match_2 match_3
+## 1         1            GARY HUA          6.0    W 39    W 21    W 18
+## 2         2     DAKSHESH DARURI          6.0    W 63    W 58     L 4
+## 3         3        ADITYA BAJAJ          6.0     L 8    W 61    W 25
+## 4         4 PATRICK H SCHILLING          5.5    W 23    D 28     W 2
+## 5         5          HANSHI ZUO          5.5    W 45    W 37    D 12
+## 6         6         HANSEN SONG          5.0    W 34    D 29    L 11
+##   match_4 match_5 match_6 match_7
+## 1    W 14     W 7    D 12     D 4
+## 2    W 17    W 16    W 20     W 7
+## 3    W 21    W 11    W 13    W 12
+## 4    W 26     D 5    W 19     D 1
+## 5    D 13     D 4    W 14    W 17
+## 6    W 35    D 10    W 27    W 21</code></pre>
+<p>Next is to prepare ‘player row 2’:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" data-line-number="1">df2_colnames &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">'state'</span>, <span class="st">'ident'</span>, <span class="st">'n'</span>, <span class="st">'m1_color'</span>, <span class="st">'m2_color'</span>, <span class="st">'m3_color'</span>,</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">                  <span class="st">'m4_color'</span>, <span class="st">'m5_color'</span>, <span class="st">'m6_color'</span>, <span class="st">'m7_color'</span>, <span class="st">'nulls'</span>)</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">player_row2_df &lt;-<span class="st"> </span><span class="kw">data.frame</span>(<span class="kw">unlist</span>(<span class="kw">unlist</span>(player_row2)))</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">player_row2_df &lt;-<span class="st"> </span>player_row2_df <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"><span class="st">    </span><span class="kw">separate</span>(<span class="kw">colnames</span>(player_row2_df)[<span class="dv">1</span>], <span class="dt">into=</span>df2_colnames, <span class="dt">sep=</span><span class="st">'</span><span class="ch">\\</span><span class="st">|'</span>) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7"><span class="st">    </span><span class="kw">select</span>(<span class="op">-</span>nulls) <span class="op">%&gt;%</span><span class="st">  </span><span class="co"># remove column of nulls</span></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8"><span class="st">    </span><span class="kw">mutate_all</span>(str_squish)</a>
+<a class="sourceLine" id="cb6-9" data-line-number="9"><span class="kw">row.names</span>(player_row2_df) &lt;-<span class="st"> </span><span class="ot">NULL</span></a>
+<a class="sourceLine" id="cb6-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb6-11" data-line-number="11"><span class="kw">head</span>(player_row2_df)</a></code></pre></div>
+<pre><code>##   state                     ident   n m1_color m2_color m3_color m4_color
+## 1    ON 15445895 / R: 1794 -&gt;1817 N:2        W        B        W        B
+## 2    MI 14598900 / R: 1553 -&gt;1663 N:2        B        W        B        W
+## 3    MI 14959604 / R: 1384 -&gt;1640 N:2        W        B        W        B
+## 4    MI 12616049 / R: 1716 -&gt;1744 N:2        W        B        W        B
+## 5    MI 14601533 / R: 1655 -&gt;1690 N:2        B        W        B        W
+## 6    OH 15055204 / R: 1686 -&gt;1687 N:3        W        B        W        B
+##   m5_color m6_color m7_color
+## 1        W        B        W
+## 2        B        W        B
+## 3        W        B        W
+## 4        W        B        B
+## 5        B        W        B
+## 6        B        W        B</code></pre>
 <p>Bringing it together:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="co"># df &lt;- cbind(player_row1_df, player_row2_df)</span></a>
-<a class="sourceLine" id="cb6-2" data-line-number="2"><span class="co"># head(df)</span></a>
-<a class="sourceLine" id="cb6-3" data-line-number="3"><span class="co"># str(df)</span></a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb8-1" data-line-number="1">tournaments &lt;-<span class="st"> </span><span class="kw">cbind</span>(player_row1_df, player_row2_df)</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2"><span class="kw">head</span>(tournaments)</a></code></pre></div>
+<pre><code>##   player_id         player_name total_points match_1 match_2 match_3
+## 1         1            GARY HUA          6.0    W 39    W 21    W 18
+## 2         2     DAKSHESH DARURI          6.0    W 63    W 58     L 4
+## 3         3        ADITYA BAJAJ          6.0     L 8    W 61    W 25
+## 4         4 PATRICK H SCHILLING          5.5    W 23    D 28     W 2
+## 5         5          HANSHI ZUO          5.5    W 45    W 37    D 12
+## 6         6         HANSEN SONG          5.0    W 34    D 29    L 11
+##   match_4 match_5 match_6 match_7 state                     ident   n
+## 1    W 14     W 7    D 12     D 4    ON 15445895 / R: 1794 -&gt;1817 N:2
+## 2    W 17    W 16    W 20     W 7    MI 14598900 / R: 1553 -&gt;1663 N:2
+## 3    W 21    W 11    W 13    W 12    MI 14959604 / R: 1384 -&gt;1640 N:2
+## 4    W 26     D 5    W 19     D 1    MI 12616049 / R: 1716 -&gt;1744 N:2
+## 5    D 13     D 4    W 14    W 17    MI 14601533 / R: 1655 -&gt;1690 N:2
+## 6    W 35    D 10    W 27    W 21    OH 15055204 / R: 1686 -&gt;1687 N:3
+##   m1_color m2_color m3_color m4_color m5_color m6_color m7_color
+## 1        W        B        W        B        W        B        W
+## 2        B        W        B        W        B        W        B
+## 3        W        B        W        B        W        B        W
+## 4        W        B        W        B        W        B        B
+## 5        B        W        B        W        B        W        B
+## 6        W        B        W        B        B        W        B</code></pre>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="kw">str</span>(tournaments)</a></code></pre></div>
+<pre><code>## 'data.frame':    64 obs. of  20 variables:
+##  $ player_id   : chr  &quot;1&quot; &quot;2&quot; &quot;3&quot; &quot;4&quot; ...
+##  $ player_name : chr  &quot;GARY HUA&quot; &quot;DAKSHESH DARURI&quot; &quot;ADITYA BAJAJ&quot; &quot;PATRICK H SCHILLING&quot; ...
+##  $ total_points: chr  &quot;6.0&quot; &quot;6.0&quot; &quot;6.0&quot; &quot;5.5&quot; ...
+##  $ match_1     : chr  &quot;W 39&quot; &quot;W 63&quot; &quot;L 8&quot; &quot;W 23&quot; ...
+##  $ match_2     : chr  &quot;W 21&quot; &quot;W 58&quot; &quot;W 61&quot; &quot;D 28&quot; ...
+##  $ match_3     : chr  &quot;W 18&quot; &quot;L 4&quot; &quot;W 25&quot; &quot;W 2&quot; ...
+##  $ match_4     : chr  &quot;W 14&quot; &quot;W 17&quot; &quot;W 21&quot; &quot;W 26&quot; ...
+##  $ match_5     : chr  &quot;W 7&quot; &quot;W 16&quot; &quot;W 11&quot; &quot;D 5&quot; ...
+##  $ match_6     : chr  &quot;D 12&quot; &quot;W 20&quot; &quot;W 13&quot; &quot;W 19&quot; ...
+##  $ match_7     : chr  &quot;D 4&quot; &quot;W 7&quot; &quot;W 12&quot; &quot;D 1&quot; ...
+##  $ state       : chr  &quot;ON&quot; &quot;MI&quot; &quot;MI&quot; &quot;MI&quot; ...
+##  $ ident       : chr  &quot;15445895 / R: 1794 -&gt;1817&quot; &quot;14598900 / R: 1553 -&gt;1663&quot; &quot;14959604 / R: 1384 -&gt;1640&quot; &quot;12616049 / R: 1716 -&gt;1744&quot; ...
+##  $ n           : chr  &quot;N:2&quot; &quot;N:2&quot; &quot;N:2&quot; &quot;N:2&quot; ...
+##  $ m1_color    : chr  &quot;W&quot; &quot;B&quot; &quot;W&quot; &quot;W&quot; ...
+##  $ m2_color    : chr  &quot;B&quot; &quot;W&quot; &quot;B&quot; &quot;B&quot; ...
+##  $ m3_color    : chr  &quot;W&quot; &quot;B&quot; &quot;W&quot; &quot;W&quot; ...
+##  $ m4_color    : chr  &quot;B&quot; &quot;W&quot; &quot;B&quot; &quot;B&quot; ...
+##  $ m5_color    : chr  &quot;W&quot; &quot;B&quot; &quot;W&quot; &quot;W&quot; ...
+##  $ m6_color    : chr  &quot;B&quot; &quot;W&quot; &quot;B&quot; &quot;B&quot; ...
+##  $ m7_color    : chr  &quot;W&quot; &quot;B&quot; &quot;W&quot; &quot;B&quot; ...</code></pre>
+</div>
+<div id="pre-rating" class="section level1">
+<h1>Pre-Rating</h1>
+<p>Pre-rating is stored in the <code>ident</code> column:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="kw">head</span>(tournaments<span class="op">$</span>ident)</a></code></pre></div>
+<pre><code>## [1] &quot;15445895 / R: 1794 -&gt;1817&quot; &quot;14598900 / R: 1553 -&gt;1663&quot;
+## [3] &quot;14959604 / R: 1384 -&gt;1640&quot; &quot;12616049 / R: 1716 -&gt;1744&quot;
+## [5] &quot;14601533 / R: 1655 -&gt;1690&quot; &quot;15055204 / R: 1686 -&gt;1687&quot;</code></pre>
+<p>We can use Regex to extract what we need into the <code>pre_rating</code> column:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb14-1" data-line-number="1">tournaments<span class="op">$</span>pre_rating &lt;-<span class="st"> </span><span class="kw">sapply</span>(tournaments<span class="op">$</span>ident, <span class="cf">function</span>(x) <span class="kw">as.numeric</span>(<span class="kw">str_match</span>(x, <span class="st">'(R: )(</span><span class="ch">\\</span><span class="st">d+)'</span>)[<span class="dv">3</span>]))</a></code></pre></div>
+</div>
+<div id="average-pre-chess-rating-of-opponents" class="section level1">
+<h1>Average Pre Chess Rating of Opponents</h1>
+<p>First, let’s create a function that provides the average for any vector of player IDs:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb15-1" data-line-number="1">calc_pre_avg &lt;-<span class="st"> </span><span class="cf">function</span>(x) {</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">    pre_ratings &lt;-<span class="st"> </span>tournaments<span class="op">$</span>pre_rating[x]</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">    <span class="kw">return</span>(<span class="kw">round</span>(<span class="kw">mean</span>(pre_ratings, <span class="dt">na.rm=</span><span class="ot">TRUE</span>)))</a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">}</a></code></pre></div>
+<p>We know player 1’s average pre rating of opponents in 1605. Let’s test this function to make sure it works:</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb16-1" data-line-number="1"><span class="kw">calc_pre_avg</span>(<span class="kw">c</span>(<span class="dv">39</span>, <span class="dv">21</span>, <span class="dv">18</span>, <span class="dv">14</span>, <span class="dv">7</span>, <span class="dv">12</span>, <span class="dv">4</span>))</a></code></pre></div>
+<pre><code>## [1] 1605</code></pre>
+<p>Perfect!</p>
+<p><em>Note that there are NA’s in some of this data. I have added <code>na.rm=TRUE</code> to ignore them when calculating the pre average. The denominator will decrease by 1 for each NA.</em></p>
+<p>Next, let’s make a column that contains each player’s match opponents’ IDs. This process gets a little messy, as we shift the data around in different R data types to ultimately subject it to<code>calc_pre_avg()</code>.</p>
+<p>Using <code>str_extract()</code> and <code>sapply</code> we can get a nice matrix containing the opponent ID for each match:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb18-1" data-line-number="1">match_opponents &lt;-<span class="st"> </span><span class="kw">as.data.frame</span>(<span class="kw">sapply</span>(tournaments[<span class="dv">4</span><span class="op">:</span><span class="dv">10</span>], str_extract, <span class="st">'</span><span class="ch">\\</span><span class="st">d+'</span>))</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="kw">head</span>(match_opponents)</a></code></pre></div>
+<pre><code>##   match_1 match_2 match_3 match_4 match_5 match_6 match_7
+## 1      39      21      18      14       7      12       4
+## 2      63      58       4      17      16      20       7
+## 3       8      61      25      21      11      13      12
+## 4      23      28       2      26       5      19       1
+## 5      45      37      12      13       4      14      17
+## 6      34      29      11      35      10      27      21</code></pre>
+<p>To apply to our custom function, arrange this dataframe into a list of vectors, each containing the IDs of opponents:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb20-1" data-line-number="1">match_opponents_list &lt;-<span class="st"> </span><span class="kw">apply</span>(match_opponents, <span class="dv">1</span>, as.list)</a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">match_opponents_num &lt;-<span class="st"> </span><span class="kw">lapply</span>(match_opponents_list, <span class="cf">function</span>(x) <span class="kw">as.numeric</span>(<span class="kw">unlist</span>(x)))</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3"><span class="kw">head</span>(match_opponents_num)</a></code></pre></div>
+<pre><code>## [[1]]
+## [1] 39 21 18 14  7 12  4
+## 
+## [[2]]
+## [1] 63 58  4 17 16 20  7
+## 
+## [[3]]
+## [1]  8 61 25 21 11 13 12
+## 
+## [[4]]
+## [1] 23 28  2 26  5 19  1
+## 
+## [[5]]
+## [1] 45 37 12 13  4 14 17
+## 
+## [[6]]
+## [1] 34 29 11 35 10 27 21</code></pre>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="kw">str</span>(<span class="kw">head</span>(match_opponents_num))</a></code></pre></div>
+<pre><code>## List of 6
+##  $ : num [1:7] 39 21 18 14 7 12 4
+##  $ : num [1:7] 63 58 4 17 16 20 7
+##  $ : num [1:7] 8 61 25 21 11 13 12
+##  $ : num [1:7] 23 28 2 26 5 19 1
+##  $ : num [1:7] 45 37 12 13 4 14 17
+##  $ : num [1:7] 34 29 11 35 10 27 21</code></pre>
+<p>Finally, calcuate the average opp pre-rating and insert as a column:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb24-1" data-line-number="1">match_pre_avg &lt;-<span class="st"> </span><span class="kw">lapply</span>(match_opponents_num, calc_pre_avg)</a>
+<a class="sourceLine" id="cb24-2" data-line-number="2">tournaments<span class="op">$</span>avg_opp_pre_rating &lt;-<span class="st"> </span><span class="kw">as.numeric</span>(match_pre_avg)</a>
+<a class="sourceLine" id="cb24-3" data-line-number="3"><span class="kw">head</span>(tournaments[<span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">22</span>)])</a></code></pre></div>
+<pre><code>##   player_id         player_name avg_opp_pre_rating
+## 1         1            GARY HUA               1605
+## 2         2     DAKSHESH DARURI               1469
+## 3         3        ADITYA BAJAJ               1564
+## 4         4 PATRICK H SCHILLING               1574
+## 5         5          HANSHI ZUO               1501
+## 6         6         HANSEN SONG               1519</code></pre>
+</div>
+<div id="final-output" class="section level1">
+<h1>Final Output</h1>
+<p>Create a dataframe <code>df</code> with only the relevant columns:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb26-1" data-line-number="1">df &lt;-<span class="st"> </span>tournaments <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb26-2" data-line-number="2"><span class="st">    </span><span class="kw">select</span>(player_name, state, total_points, pre_rating, avg_opp_pre_rating) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb26-3" data-line-number="3"><span class="st">    </span><span class="kw">mutate</span>(<span class="dt">total_points =</span> <span class="kw">as.numeric</span>(total_points))</a>
+<a class="sourceLine" id="cb26-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb26-5" data-line-number="5"><span class="kw">head</span>(df)</a></code></pre></div>
+<pre><code>##           player_name state total_points pre_rating avg_opp_pre_rating
+## 1            GARY HUA    ON          6.0       1794               1605
+## 2     DAKSHESH DARURI    MI          6.0       1553               1469
+## 3        ADITYA BAJAJ    MI          6.0       1384               1564
+## 4 PATRICK H SCHILLING    MI          5.5       1716               1574
+## 5          HANSHI ZUO    MI          5.5       1655               1501
+## 6         HANSEN SONG    OH          5.0       1686               1519</code></pre>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb28-1" data-line-number="1"><span class="kw">str</span>(df)</a></code></pre></div>
+<pre><code>## 'data.frame':    64 obs. of  5 variables:
+##  $ player_name       : chr  &quot;GARY HUA&quot; &quot;DAKSHESH DARURI&quot; &quot;ADITYA BAJAJ&quot; &quot;PATRICK H SCHILLING&quot; ...
+##  $ state             : chr  &quot;ON&quot; &quot;MI&quot; &quot;MI&quot; &quot;MI&quot; ...
+##  $ total_points      : num  6 6 6 5.5 5.5 5 5 5 5 5 ...
+##  $ pre_rating        : num  1794 1553 1384 1716 1655 ...
+##  $ avg_opp_pre_rating: num  1605 1469 1564 1574 1501 ...</code></pre>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb30-1" data-line-number="1"><span class="kw">write.csv</span>(df, <span class="st">'output.csv'</span>, <span class="dt">row.names=</span><span class="ot">FALSE</span>)</a></code></pre></div>
+</div>
+<div id="bonus-do-higher-elo-players-always-beat-lower-elo-players" class="section level1">
+<h1>Bonus: Do higher-ELO players always beat lower-ELO players?</h1>
+<p>How useful is the ELO rating? How often does a higher-ELO player beat a lesser-ELO player?</p>
+<p>First let’s create an index of players and their pre-ratings:</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb31-1" data-line-number="1">pre_ratings &lt;-<span class="st"> </span>tournaments[<span class="kw">c</span>(<span class="st">'player_id'</span>, <span class="st">'pre_rating'</span>)]</a>
+<a class="sourceLine" id="cb31-2" data-line-number="2"><span class="kw">head</span>(pre_ratings)</a></code></pre></div>
+<pre><code>##   player_id pre_rating
+## 1         1       1794
+## 2         2       1553
+## 3         3       1384
+## 4         4       1716
+## 5         5       1655
+## 6         6       1686</code></pre>
+<p>Next let’s convert the (wide) tournament data into (long) match data with <code>reshape2::melt()</code>. I’m also including only matches with a win or loss outcome. Then I get the player and opponent’s ratings from <code>pre_ratings</code>.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb33-1" data-line-number="1"><span class="kw">library</span>(reshape2)</a>
+<a class="sourceLine" id="cb33-2" data-line-number="2">matches &lt;-<span class="st"> </span>tournaments[<span class="kw">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">4</span><span class="op">:</span><span class="dv">10</span>)] <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-3" data-line-number="3"><span class="st">    </span><span class="kw">melt</span>(<span class="dt">id.vars=</span><span class="kw">c</span>(<span class="st">'player_id'</span>, <span class="st">'player_name'</span>)) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-4" data-line-number="4"><span class="st">    </span><span class="kw">filter</span>(<span class="kw">str_detect</span>(value, <span class="st">'W|L'</span>) <span class="op">==</span><span class="st"> </span><span class="ot">TRUE</span>) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-5" data-line-number="5"><span class="st">    </span><span class="kw">separate</span>(<span class="st">'value'</span>, <span class="dt">into=</span><span class="kw">c</span>(<span class="st">'outcome'</span>, <span class="st">'opponent_id'</span>), <span class="dt">sep=</span><span class="st">' '</span>) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-6" data-line-number="6"><span class="st">    </span><span class="kw">inner_join</span>(pre_ratings, <span class="dt">by=</span><span class="st">'player_id'</span>) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-7" data-line-number="7"><span class="st">    </span><span class="kw">inner_join</span>(pre_ratings, <span class="dt">by=</span><span class="kw">c</span>(<span class="st">'opponent_id'</span>=<span class="st">'player_id'</span>)) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-8" data-line-number="8"><span class="st">    `</span><span class="dt">colnames&lt;-</span><span class="st">`</span>(<span class="kw">c</span>(<span class="st">'player_id'</span>, <span class="st">'player_name'</span>, <span class="st">'match'</span>, <span class="st">'outcome'</span>,</a>
+<a class="sourceLine" id="cb33-9" data-line-number="9">                   <span class="st">'opponent_id'</span>, <span class="st">'player_rating'</span>, <span class="st">'opponent_rating'</span>)) <span class="op">%&gt;%</span></a>
+<a class="sourceLine" id="cb33-10" data-line-number="10"><span class="st">    </span><span class="kw">select</span>(player_id, match, outcome, opponent_id, player_rating, </a>
+<a class="sourceLine" id="cb33-11" data-line-number="11">           opponent_rating)</a>
+<a class="sourceLine" id="cb33-12" data-line-number="12"></a>
+<a class="sourceLine" id="cb33-13" data-line-number="13"><span class="kw">head</span>(matches)</a></code></pre></div>
+<pre><code>##   player_id   match outcome opponent_id player_rating opponent_rating
+## 1         1 match_1       W          39          1794            1436
+## 2         2 match_1       W          63          1553            1175
+## 3         3 match_1       L           8          1384            1641
+## 4         4 match_1       W          23          1716            1363
+## 5         5 match_1       W          45          1655            1242
+## 6         6 match_1       W          34          1686            1399</code></pre>
+<p>There are obviously duplicates in this dataset, e.g., there’s a record for (player_id=X, opponent_id=Y) and one for (player_id=Y, opponent_id=X), even though it’s the same match.</p>
+<p>To de-dupe, I’m going to create a unique ID for each match, then dedupe on that column. To create the unique ID, I put player_id and opponent_id in a two-value numeric vector, than sort numerically. Then I append the match number.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb35-1" data-line-number="1">player_ids &lt;-<span class="st"> </span><span class="kw">paste</span>(matches<span class="op">$</span>player_id, matches<span class="op">$</span>opponent_id, <span class="dt">sep=</span><span class="st">','</span>)</a>
+<a class="sourceLine" id="cb35-2" data-line-number="2">player_ids_sorted &lt;-<span class="st"> </span><span class="kw">lapply</span>(player_ids, <span class="cf">function</span>(i) <span class="kw">sort</span>(<span class="kw">as.numeric</span>(<span class="kw">unlist</span>(<span class="kw">str_split</span>(i, <span class="st">','</span>)))))</a>
+<a class="sourceLine" id="cb35-3" data-line-number="3">player_ids_char &lt;-<span class="st"> </span><span class="kw">lapply</span>(player_ids_sorted, <span class="cf">function</span>(x) <span class="kw">paste</span>(x, <span class="dt">collapse=</span><span class="st">'_'</span>))</a>
+<a class="sourceLine" id="cb35-4" data-line-number="4">matches<span class="op">$</span>match_id &lt;-<span class="st"> </span><span class="kw">paste</span>(matches<span class="op">$</span>match, player_ids_char, <span class="dt">sep=</span><span class="st">&quot;_&quot;</span>)</a>
+<a class="sourceLine" id="cb35-5" data-line-number="5"></a>
+<a class="sourceLine" id="cb35-6" data-line-number="6"><span class="kw">head</span>(matches<span class="op">$</span>match_id)</a></code></pre></div>
+<pre><code>## [1] &quot;match_1_1_39&quot; &quot;match_1_2_63&quot; &quot;match_1_3_8&quot;  &quot;match_1_4_23&quot;
+## [5] &quot;match_1_5_45&quot; &quot;match_1_6_34&quot;</code></pre>
+<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb37-1" data-line-number="1"><span class="kw">length</span>(matches<span class="op">$</span>match_id)</a></code></pre></div>
+<pre><code>## [1] 350</code></pre>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb39-1" data-line-number="1"><span class="kw">length</span>(<span class="kw">unique</span>(matches<span class="op">$</span>match_id))</a></code></pre></div>
+<pre><code>## [1] 175</code></pre>
+<p>We see match ID has done its job: There are half as many unique IDs as there are records. Dedupe on match_id:</p>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb41-1" data-line-number="1">matches &lt;-<span class="st"> </span><span class="kw">distinct</span>(matches, match_id, <span class="dt">.keep_all=</span><span class="ot">TRUE</span>)</a></code></pre></div>
+<p>Finally, let’s calculate how often higher-ELO beats lower-ELO:</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb42-1" data-line-number="1">matches<span class="op">$</span>player_gt_opponent &lt;-<span class="st"> </span><span class="kw">ifelse</span>(matches<span class="op">$</span>player_rating <span class="op">&gt;</span><span class="st"> </span>matches<span class="op">$</span>opponent_rating,</a>
+<a class="sourceLine" id="cb42-2" data-line-number="2">                                     <span class="ot">TRUE</span>, <span class="ot">FALSE</span>)</a>
+<a class="sourceLine" id="cb42-3" data-line-number="3"><span class="kw">head</span>(matches)</a></code></pre></div>
+<pre><code>##   player_id   match outcome opponent_id player_rating opponent_rating
+## 1         1 match_1       W          39          1794            1436
+## 2         2 match_1       W          63          1553            1175
+## 3         3 match_1       L           8          1384            1641
+## 4         4 match_1       W          23          1716            1363
+## 5         5 match_1       W          45          1655            1242
+## 6         6 match_1       W          34          1686            1399
+##       match_id player_gt_opponent
+## 1 match_1_1_39               TRUE
+## 2 match_1_2_63               TRUE
+## 3  match_1_3_8              FALSE
+## 4 match_1_4_23               TRUE
+## 5 match_1_5_45               TRUE
+## 6 match_1_6_34               TRUE</code></pre>
+<p>Examining the results of this analysis:</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb44-1" data-line-number="1"><span class="kw">table</span>(matches<span class="op">$</span>outcome, matches<span class="op">$</span>player_gt_opponent)</a></code></pre></div>
+<pre><code>##    
+##     FALSE TRUE
+##   L    12   21
+##   W    26  116</code></pre>
+<p>This strikes me as odd.</p>
+<p>There where 21 + 116 = 137 matches where <code>player</code> had a higher ELO rating than <code>opponent</code>, and <code>player</code> won <span class="math inline">\(116/137 =\)</span> almost 85 percent of the time.</p>
+<p>However, of the <span class="math inline">\(12 + 26 = 38\)</span> matches where <code>player</code> did not have a higher rating than <code>opponent</code>, <code>player</code> still won <span class="math inline">\(26/38 =\)</span> 68 percent of the time.</p>
+<p>This suggests that ELO doesn’t matter so much. It seems to me there is something else going on in this data, that some other variable is more highly associated with <code>player</code> winning than ELO, e.g., ranking. Perhaps what this data really says is that currently top ranked chess players are likely to beat lower ranked chess players (with higher ELO ranking increasing the probability somewhat). The data also suggest upsets in chess rankings should be few.</p>
 </div>
     </section>
   </div>

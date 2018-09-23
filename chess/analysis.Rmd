@@ -1,7 +1,7 @@
 ---
-title: "Chess Tournement Data"
+title: "Cleaning Chess Tournement Data with Minimal RegEx"
 author: "Ben Horvath"
-date: "September 16, 2018"
+date: "September 23, 2018"
 output:
     html_document:
         theme: null
@@ -25,11 +25,10 @@ header-includes:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Load general libraries
+Load general libraries:
 
 ```{r, warning=FALSE, message=FALSE}
 library(dplyr)
-library(magrittr)
 library(stringr)
 library(tidyr)
 ```
@@ -38,15 +37,30 @@ library(tidyr)
 
 The purpose this document is to describe the process of importing the data in `tournamentinfo.txt` and making it amenable to R.
 
-RegEx always feels slightly dirty to me---like a last resort---so I'd like to minimize its use. Even minor changes to the source data can ruin RegEx matching, and even the most thoughtful RegEx can behave unexpectedly.
+The data is highly formatted, using sequences of pipe and hyphen characters as column and row delimiters respectively, and splits each record across two lines. Below are the first few records of data:
 
-Instead I'm going to try to make R see the the data 'by itself' as much as possible. Hopefully this will make it easier to understand the code, RegEx being notoriously hard to read. And hopefully this makes it more robust to changes, such as columns added or discarded, and thus easier to maintain.
+```{r, echo=FALSE}
+raw <- readLines('tournamentinfo.txt')
+head(raw, 16)
+```
+
+Each record is a player in the chess tournament. Records include player ID, player state, total points, pre- and post-tournament rating, outcome of all rounds (seven total), the opponents' IDs for each match, and the color of the player that match.
+
+The end goal is a clean dataframe with player name, player state, total points, pre-tournament rating, and average pre-tournament rating of opponents.
+
+
+
+## Aproach
+
+RegEx always feels slightly dirty to me---like a last resort---so I'd like to minimize its use. Even minor changes to the source data can ruin RegEx matching, even the most thoughtful RegEx can behave unexpectedly, and besides, RegEx are notoriously hard to read.
+
+Instead I'm going to try to make R see the the data 'by itself' as much as possible. Hopefully this will make it easier to understand the code, make it more robust to changes such as columns added or discarded, and thus easier to maintain.
 
 
 
 # Loading the Raw Text
 
-Sometimes it is easier to treat messy data as _lines of text_, instead of trying to force them into a vector-dataframe form right out of the gate.
+Rather than trying to force this messy text data into vector-dataframe form right out of the gate, I'm going to start by treating it as _lines of text_.
 
 First, run each line in a for loop, categorizing them by simple RegEx expressions. One reason this data table is tricky is that the relevant data is spread over two lines. I will refer to the first line in a player row as 'player row 1' and the second as 'player row 2.' After I seperate out the relevant lines from the table into dataframes, I'll combine the pieces later for further manipulation.
 
@@ -70,31 +84,28 @@ for (line in raw) {
 
 
 
-# Clean Player Data
+# Clean Tournament Data
 
 Now to prepare `player_row1`, currently a list of messy text, into a dataframe of clean text.
 
 ```{r, warning=FALSE, message=FALSE}
-# USE THIS TEMPLATE of player_row2_df
-# player_row2_df <- data.frame(unlist(unlist(player_row2)))
-# df2_colnames <- c('player_id', 'player', 'total_score', 'round_1', 'round_2',
-#                   'round_3', 'round_4', 'round_5', 'round_6', 'round_7', 'nulls')
-# 
-# player_row2_df <- player_row2_df %>%
-#     separate(colnames(player_row2_df)[1], into=df2_colnames, sep='\\|') %>%
-#     select(-nulls) %>%  # remove column of nulls
-#     mutate_all(str_squish) %>%
-#     mutate(player_id=as.integer(player_id), total_score=as.numeric(total_score))
-# row.names(player_row2_df) <- NULL
-# 
-# head(player_row2_df)
+df1_colnames <- c('player_id', 'player_name', 'total_points', 'match_1', 'match_2',
+                  'match_3', 'match_4', 'match_5', 'match_6', 'match_7')
+
+player_row1_df <- data.frame(unlist(unlist(player_row1)))
+player_row1_df <- player_row1_df %>%
+    separate(colnames(player_row1_df)[1], into=df1_colnames, sep='\\|') %>%
+    mutate_all(str_squish)
+row.names(player_row1_df) <- NULL
+
+head(player_row1_df)
 ```
 
 Next is to prepare 'player row 2':
 
 ```{r, warning=FALSE, message=FALSE}
-df2_colnames <- c('state', 'ident', 'n', 'x_1', 'x_2', 'x_3', 'x_4', 'x_5', 'x_6',
-                  'x_7', 'nulls')
+df2_colnames <- c('state', 'ident', 'n', 'm1_color', 'm2_color', 'm3_color',
+                  'm4_color', 'm5_color', 'm6_color', 'm7_color', 'nulls')
 
 player_row2_df <- data.frame(unlist(unlist(player_row2)))
 player_row2_df <- player_row2_df %>%
@@ -109,7 +120,161 @@ head(player_row2_df)
 Bringing it together:
 
 ```{r}
-# df <- cbind(player_row1_df, player_row2_df)
-# head(df)
-# str(df)
+tournaments <- cbind(player_row1_df, player_row2_df)
+head(tournaments)
+str(tournaments)
 ```
+
+# Pre-Rating
+
+Pre-rating is stored in the `ident` column:
+
+```{r}
+head(tournaments$ident)
+```
+
+We can use Regex to extract what we need into the `pre_rating` column:
+
+```{r}
+tournaments$pre_rating <- sapply(tournaments$ident, function(x) as.numeric(str_match(x, '(R: )(\\d+)')[3]))
+```
+
+
+
+# Average Pre Chess Rating of Opponents
+
+First, let's create a function that provides the average for any vector of player IDs:
+
+```{r}
+calc_pre_avg <- function(x) {
+    pre_ratings <- tournaments$pre_rating[x]
+    return(round(mean(pre_ratings, na.rm=TRUE)))
+}
+```
+
+We know player 1's average pre rating of opponents in 1605. Let's test this function to make sure it works:
+
+```{r}
+calc_pre_avg(c(39, 21, 18, 14, 7, 12, 4))
+```
+
+Perfect!
+
+_Note that there are NA's in some of this data. I have added `na.rm=TRUE` to ignore them when calculating the pre average. The denominator will decrease by 1 for each NA._
+
+Next, let's make a column that contains each player's match opponents' IDs. This process gets a little messy, as we shift the data around in different R data types to ultimately subject it to`calc_pre_avg()`.
+
+Using `str_extract()` and `sapply` we can get a nice matrix containing the opponent ID for each match:
+
+```{r}
+match_opponents <- as.data.frame(sapply(tournaments[4:10], str_extract, '\\d+'))
+head(match_opponents)
+```
+
+To apply to our custom function, arrange this dataframe into a list of vectors, each containing the IDs of opponents:
+
+```{r}
+match_opponents_list <- apply(match_opponents, 1, as.list)
+match_opponents_num <- lapply(match_opponents_list, function(x) as.numeric(unlist(x)))
+head(match_opponents_num)
+str(head(match_opponents_num))
+```
+
+Finally, calcuate the average opp pre-rating and insert as a column:
+
+```{r}
+match_pre_avg <- lapply(match_opponents_num, calc_pre_avg)
+tournaments$avg_opp_pre_rating <- as.numeric(match_pre_avg)
+head(tournaments[c(1, 2, 22)])
+```
+
+
+
+# Final Output
+
+Create a dataframe `df` with only the relevant columns:
+
+```{r}
+df <- tournaments %>% 
+    select(player_name, state, total_points, pre_rating, avg_opp_pre_rating) %>%
+    mutate(total_points = as.numeric(total_points))
+
+head(df)
+
+str(df)
+
+write.csv(df, 'output.csv', row.names=FALSE)
+```
+
+
+
+# Bonus: Do higher-ELO players always beat lower-ELO players?
+
+How useful is the ELO rating? How often does a higher-ELO player beat a lesser-ELO player?
+
+First let's create an index of players and their pre-ratings:
+
+```{r}
+pre_ratings <- tournaments[c('player_id', 'pre_rating')]
+head(pre_ratings)
+```
+
+Next let's convert the (wide) tournament data into (long) match data with `reshape2::melt()`. I'm also including only matches with a win or loss outcome. Then I get the player and opponent's ratings from `pre_ratings`.
+
+```{r, warning=FALSE, message=FALSE}
+library(reshape2)
+matches <- tournaments[c(1, 2, 4:10)] %>%
+    melt(id.vars=c('player_id', 'player_name')) %>%
+    filter(str_detect(value, 'W|L') == TRUE) %>%
+    separate('value', into=c('outcome', 'opponent_id'), sep=' ') %>%
+    inner_join(pre_ratings, by='player_id') %>%
+    inner_join(pre_ratings, by=c('opponent_id'='player_id')) %>%
+    `colnames<-`(c('player_id', 'player_name', 'match', 'outcome',
+                   'opponent_id', 'player_rating', 'opponent_rating')) %>%
+    select(player_id, match, outcome, opponent_id, player_rating, 
+           opponent_rating)
+
+head(matches)
+```
+
+There are obviously duplicates in this dataset, e.g., there's a record for (player_id=X, opponent_id=Y) and one for (player_id=Y, opponent_id=X), even though it's the same match.
+
+To de-dupe, I'm going to create a unique ID for each match, then dedupe on that column. To create the unique ID, I put player_id and opponent_id in a two-value numeric vector, than sort numerically. Then I append the match number.
+
+```{r}
+player_ids <- paste(matches$player_id, matches$opponent_id, sep=',')
+player_ids_sorted <- lapply(player_ids, function(i) sort(as.numeric(unlist(str_split(i, ',')))))
+player_ids_char <- lapply(player_ids_sorted, function(x) paste(x, collapse='_'))
+matches$match_id <- paste(matches$match, player_ids_char, sep="_")
+
+head(matches$match_id)
+length(matches$match_id)
+length(unique(matches$match_id))
+```
+
+We see match ID has done its job: There are half as many unique IDs as there are records. Dedupe on match_id:
+
+```{r}
+matches <- distinct(matches, match_id, .keep_all=TRUE)
+```
+
+Finally, let's calculate how often higher-ELO beats lower-ELO:
+
+```{r}
+matches$player_gt_opponent <- ifelse(matches$player_rating > matches$opponent_rating,
+                                     TRUE, FALSE)
+head(matches)
+```
+
+Examining the results of this analysis:
+```{r}
+table(matches$outcome, matches$player_gt_opponent)
+```
+
+This strikes me as odd.
+
+There where 21 + 116 = 137 matches where `player` had a higher ELO rating than `opponent`, and `player` won $116/137 =$ almost 85 percent of the time.
+
+However, of the $12 + 26 = 38$ matches where `player` did not have a higher rating than `opponent`, `player` still won $26/38 =$ 68 percent of the time.
+
+This suggests that ELO doesn't matter so much. It seems to me there is something else going on in this data, that some other variable is more highly associated with `player` winning than ELO, e.g., ranking. Perhaps what this data really says is that currently top ranked chess players are likely to beat lower ranked chess players (with higher ELO ranking increasing the probability somewhat). The data also suggest upsets in chess rankings should be few.
