@@ -1,0 +1,79 @@
+---
+title: "DATA 607---Homework No. 5"
+author: "Ben Horvath"
+date: "September 30, 2018"
+output:
+  html_document:
+    theme: null
+    css: ../static/architect.css
+    template: ../static/architect.html
+    pandoc_args: [
+      "--mathjax", "",
+      "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+  pdf_document:
+    keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+  \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+```
+
+Load the data and take a look at how I represented the PDF file:
+
+```{r}
+df <- read.csv('flights.csv', stringsAsFactors=FALSE)
+head(df)
+```
+
+Now let's convert to long format:
+
+```{r, warning=FALSE, message=FALSE}
+library(tidyr)
+df_long <- gather(df, airport, qty_flights, los_angeles:seattle) %>%
+    select(airline, airport, status, qty_flights) %>%
+    arrange(airline, airport, status)
+head(df_long)
+```
+
+The primary variable of analysis is percent of flights delayed.
+
+```{r}
+total_flights <- df_long %>%
+    group_by(airline, airport) %>%
+    summarize(total=sum(qty_flights))
+total_flights
+```
+
+Join `total_flights` to our original `df_long` and calculate percentages:
+
+```{r}
+df_long <- df_long %>%
+    inner_join(total_flights, by=c('airline', 'airport')) %>%
+    mutate(delays=qty_flights / total) %>%
+    filter(status == 'delayed')
+```
+
+Use `ggplot2` to use a heatmap to summarize the difference in delays:
+
+```{r, warning=FALSE, message=FALSE}
+library(ggplot2)
+ggplot(df_long, aes(airline, airport)) + 
+    geom_tile(aes(fill=delays), color='white') +
+    scale_fill_gradient(low='white', high='red')
+ 
+```
+
+We see that there are differences in delay rate between cities and airlines. Overall, Alaska has delays 13.27 percent of the time, and AM West about 10.89 percent of the time. This is interesting because the graph seems to tell a different story---it suggests that Alaska has a better delay rate than AM West in every airport, even if its overall rate is worse---a lesson in the difference between aggregate and 'atomic' statistics, I suppose.
