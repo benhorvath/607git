@@ -1,0 +1,301 @@
+---
+title: "Data 607 -- Project 2"
+author: "Ben Horvath"
+date: "October 7, 2018"
+output:
+    html_document:
+        theme: null
+        toc: true
+        css: ../static/architect.css
+        template: ../static/architect.html
+        pandoc_args: [
+            "--mathjax", "",
+            "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+    pdf_document:
+        keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+    \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load general libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+```
+
+# Data Set 1: Poverty in the United States
+
+This dataset describes the distribution of poverty in the United States across several different dimensions. The discussion on the forum only mentioned race or gender, so I will truncate the data to only include race. (It wouldn't make sense to combine race _and_ gender data frames anyway, since the table does not inform us about their intersection.)
+
+
+## Data Cleaning
+
+The data is multi-indexed with a complicated header---it's a mess. I'll start the cleaning by bypassing it by skipping the header lines.
+
+```{r, warning=FALSE, message=FALSE}
+# install.packages('readxl')
+library(readxl)
+pov_table <- read_excel('pov_table3.xls', skip=13, col_names=FALSE)
+head(pov_table)
+
+race <- pov_table[1:5,]
+head(race)
+```
+
+The simplest way to deal with the fact there are two years 'presented horizontally' is brute force---slice up the data frame:
+
+```{r}
+race_2016 <- race[,1:6]
+race_2017 <- race[,c(1,7:11)]
+race_colnames <- c('race', 'total', 'in_poverty', 'me', 'perc', 'perc_me')
+colnames(race_2016) <- race_colnames
+colnames(race_2017) <- race_colnames
+race_2016$year <- as.factor(2016)
+race_2017$year <- as.factor(2017)
+race_long <- rbind(race_2016, race_2017)
+head(race_long, 7)  # note year column at far right
+```
+
+Next is to clean up superfluous characters. The `race` column is annoying because it varies between using the ellipsis character (`…`) and three periods (`...`), still easily handled with Regex, however: 
+
+```{r, warning=FALSE, message=FALSE}
+race_long <- race_long %>%
+   mutate(race = str_remove_all(race, '…|\\.'))
+head(race_long)
+```
+
+
+## Analysis
+
+Since this data is concerned with temporal variation, let's create a line graph to get a sense of it:
+
+```{r}
+ggplot(race_long, aes(year, perc, group=race, colour=race)) +
+    geom_line()
+```
+
+It's not a great chart.
+
+There's only two years available in the data, so its utility is obviously limited.
+
+We do see, however, that the populations suffering from the most poverty have decreased incidence of poverty in 2017 compared to the prior year. Non-Hispanic whites and Asians have the lowest incidence, which is nearly the same in 2017 as in 2016.
+
+
+
+# Data Set 2: Law Enforcement Officers Killed
+
+This dataset consists of two files. Officer deaths are split into one file if accidental, another if 'feloniously killed.'
+
+I will clean up these files and combine them, creating a master dataset of officer deaths from 2008-2017.
+
+## Data Cleaning
+
+Let's start with accidental officer deaths:
+
+```{r}
+accidental <- read_xls('table-48.xls', skip=3)
+```
+
+Get rid of the first row and column which give totals:
+
+```{r}
+accidental <- accidental %>% slice(-1)
+accidental$Total <- NULL
+head(accidental)
+```
+
+Now we have to decide what we actually want to extract from this data: Officers accidentally killed by region (Midwest, Northeast, etc.), or by state. Since by state is more informative, I will focus on producing state-level data.
+
+First, filter out the rows that contains region headings and sums:
+
+```{r}
+filter_out <- 'NORTHEAST|MIDWEST|SOUTH|WEST|PUERTO RICO AND OTHER OUTLYING AREAS|MIDWEST|Mountain|New England|Middle Atlantic|East North Central|West North Central|South Atlantic|East South Central|West South Central|Pacific'
+accidental <- accidental %>%
+    filter(str_detect(Area, filter_out) == FALSE)
+colnames(accidental)[1] <- 'state'
+head(accidental)
+```
+
+Convert from wide to long:
+
+```{r}
+accidental_long <- accidental %>% 
+    gather(year, fatalities, `2008`:`2017`) %>%
+    mutate(type='accidental') %>%
+    arrange(state, year)
+head(accidental_long)
+```
+
+Now, prepare the felonious officer deaths in the same way:
+
+```{r}
+felon <- read_xls('table-1.xls', skip=3) %>%
+    slice(-1) %>%
+    filter(str_detect(Area, filter_out) == FALSE)
+felon$Total <- NULL
+colnames(felon)[1] <- 'state'
+
+felon_long <- felon %>%
+    gather(year, fatalities, `2008`:`2017`) %>%
+    mutate(type='felonious') %>%
+    arrange(state, year)
+
+head(felon_long)
+```
+
+
+Join the accidental and felonious data sets:
+
+```{r}
+officer_deaths <- rbind(accidental_long, felon_long) %>%
+    arrange(state, year, type)
+head(officer_deaths, 10)
+```
+
+
+## Analysis
+
+The obvious analysis is to consider officer deaths, felonious and accidental, over time. We can use a line graph for that:
+
+```{r}
+plot_deaths <- officer_deaths %>%
+    group_by(year, type) %>%
+    summarize(deaths=sum(fatalities))
+head(plot_deaths)
+
+ggplot(plot_deaths, aes(year, deaths, group=type, color=type)) +
+    geom_line() +
+    labs(x="Year", y="Officer Deaths") +
+    theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+Two things strike me about these numbers: About half the time, more officers are killed by accident---and a quick Google suggests this is car accidents, specifically. Second, the total number of officers killed is always less than 150. _Per year_. 
+
+I would've suspected it was a lot larger. To check my intuition, I texted my dad to ask him to estimate how many police officers died on duty every year. He suggested one or two thousand! That is, my dad thought the United States is more dangerous for police officers than Iraq was at peak violence for American soldiers (c. 2006)!
+
+This data combined with my poll of $n = 1$ suggests Americans may overestimate the dangers law enforcement officers face.
+
+
+
+# Data Set 3: Arms Exports
+
+This is the data set I submitted to the forum, the Arms Transfers Database.
+
+It is maintained by the [Stockholm International Peace Research Institute](https://www.sipri.org/databases/armstransfers), and is meant to be a catalog of all international arms sales/transfers since 1950.
+
+The specific dataset under consideration is the exports dataset. Here, quantity of arms exports is operationalized as the Institute's _trend indicator values_ (TIV). TIV are an attempt to use a common unit to represent arms transfers, rather than trying to account for the relative value of, e.g., 10 thousand machine guns versus 10 thousand assault rifles. It is based on production cost of weapons systes (as opposed to market value), as well as the condition of the weapon (used, new, refurbished).
+
+
+## Data Cleaning
+
+The data contains the total TIV for all countries' exports between 1950 and 2017.
+
+_Note: The file extension is .xls, but it appears to be a regular CSV file._
+
+```{r}
+raw <- read.csv('TIV-Export-All-1950-2017.csv.xls', skip=10, header=TRUE,
+                stringsAsFactors=FALSE)
+head(raw)
+```
+
+Each row represents a country, and each column a year. (Note that R has appends an 'X' to each year column.) Let's remove the superfluous Total column and row, and label the first column:
+
+```{r, warning=FALSE, message=FALSE}
+raw$Total <- NULL
+colnames(raw)[1] <- 'country'
+raw <- raw %>% filter(country != 'Total')
+```
+
+Now to make the data tidy. Each row must be a country-year observation. This is easily accomplished with `tidyr`:
+
+```{r, warning=FALSE, message=FALSE}
+exports <- gather(raw, year, exports, X1950:X2017, na.rm=TRUE) %>%
+    mutate(year=as.integer(str_remove(year, 'X'))) %>%
+    arrange(country, year)
+
+head(exports)
+str(exports)
+```
+
+
+
+## Analysis
+
+This dataset can be summarized either over time and over space. I will do a sampling of both below.
+
+
+### Time: Arms Exports Over Time
+
+The simplest way to aggregate arms exports over time would be to sum exports by year:
+
+```{r}
+yearly_exports <- exports %>%
+    group_by(year) %>%
+    summarise(total_exports=sum(exports))
+
+ggplot(yearly_exports, aes(year, total_exports)) +
+    geom_line()
+```
+
+It's difficult to pick out specific events from this chart, but in some way it is a concise representation of international politics during the Cold War, 9/11, and after.
+
+#### Over Time, by Region
+
+We might be able to see more from this data by breaking the aggregation into smaller, though still macro, chunks. The International Organization for Standardization maintains many standards, including how countries are divided into regions. Fortunately, their classification is readily available on GitHub:
+
+```{r}
+regions <- read.csv('https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv', stringsAsFactors=FALSE) %>% 
+    select(name, region)
+head(regions)
+```
+
+Combine with existing data:
+
+```{r}
+regional_exports <- exports %>%
+    inner_join(regions, by=c('country'='name')) %>%
+    group_by(year, region) %>%
+    summarise(total_exports=sum(exports))
+```
+
+Now, plot historically as above, but including multiple lines corresponding to regions:
+
+```{r}
+ggplot(regional_exports, aes(year, total_exports, group=region, color=region)) +
+    geom_line()
+```
+
+This gives us a bit more definition. The vast majority of arms exports went to Europe and Asia. Indeed, I think you can see the Vietnam War on the Asian line---which entailed massive aid to South Vietnam---as the war ramped up in 1965 through Nixon's Vietnamization of the the war in the first half of the 1970s.
+
+
+### Space: Top Arms Exporters
+
+Who were the top 10 arms dealers?
+
+```{r}
+countries <- exports %>%
+    group_by(country) %>%
+    summarise(total_exports=sum(exports)) %>%
+    arrange(desc(total_exports))
+
+library(scales)
+ggplot(head(countries, 10), aes(reorder(country, -total_exports), total_exports)) +
+    geom_bar(stat='identity') +
+    labs(x="Country", y="TIV") +
+    scale_y_continuous(labels = comma) +  # no scientific notation on y-axis
+    theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+A specialist would probably demand this graph be broken into two for correct inferences, one before the collapse of the Soviet Union in 1991 and one for after.

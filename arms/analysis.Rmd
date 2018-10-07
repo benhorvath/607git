@@ -1,0 +1,146 @@
+---
+title: "Cleaning Arms Dataset"
+author: "Ben Horvath"
+date: "October 2018"
+output:
+    html_document:
+        theme: null
+        css: ../static/architect.css
+        template: ../static/architect.html
+        pandoc_args: [
+            "--mathjax", "",
+            "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+    pdf_document:
+        keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+    \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load general libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+```
+
+
+
+# Introduction
+
+The purpose of this document is to import and clean the Arms Transfers Database, maintained by the [Stockholm International Peace Research Institute](https://www.sipri.org/databases/armstransfers), and to determine the top arms dealers and recipients, outlying arms deals, and the most in-demand weapons systems.
+
+The specific dataset under consideration is the exports dataset. 
+
+In this dataset, quantity of arms exports is operationalized as the Institute's _trend indicator values_ (TIV). TIV are an attempt to use a common unit to represent arms transfers, rather than trying to account for the relative value of, e.g., 10 thousand machine guns versus 10 thousand assault rifles. It is based on production cost of weapons systes (as opposed to market value), and well as the condition of the weapon (used, new, refurbished).
+
+
+# Data Cleaning
+
+The data contains the total TIV for all countries between 1950 and 2017.
+
+```{r}
+raw <- read.csv('TIV-Export-All-1950-2017.csv.xls', skip=10, header=TRUE,
+                stringsAsFactors=FALSE)
+head(raw)
+```
+
+Each row represents a country, and each column a year. (Note that R prohibits column names from starting with a digit, so it appends an 'X' to each.) Let's remove the superfluous Total column, and label the first column 'country':
+
+```{r, warning=FALSE, message=FALSE}
+raw$Total <- NULL
+colnames(raw)[1] <- 'country'
+raw <- raw %>% filter(country != 'Total')
+```
+
+Now, the goal is to make this data long. Each row must be a country-year observation. This is easily accomplished with `tidyr`:
+
+```{r, warning=FALSE, message=FALSE}
+exports <- gather(raw, year, exports, X1950:X2017, na.rm=TRUE) %>%
+    mutate(year=as.integer(str_remove(year, 'X'))) %>%
+    arrange(country, year)
+
+head(exports)
+str(exports)
+```
+
+
+
+# Analysis
+
+This dataset can be summarized either over time and over space. I will do a sampling of both below.
+
+
+## Time: Arms Exports Over Time
+
+The simplest way to aggregate arms exports over time would be to sum exports by year:
+
+```{r}
+yearly_exports <- exports %>%
+    group_by(year) %>%
+    summarise(total_exports=sum(exports))
+
+ggplot(yearly_exports, aes(year, total_exports)) +
+    geom_line()
+```
+
+It's difficult to pick out specific events from this chart, but in some way it is a concise representation of international politics during the Cold War, 9/11, and after.
+
+### Over Time, by Region
+
+We might be able to see more from this data by breaking the aggregation into smaller, though still macro, chunks. We can join the International Standard's Organization classifications of countries into regions, continents, etc., to achieve this.
+
+Fortunately, it is readily available on GitHub:
+
+```{r}
+regions <- read.csv('https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/master/all/all.csv', stringsAsFactors=FALSE) %>% 
+    select(name, region)
+head(regions)
+```
+
+Combine with existing data:
+
+```{r}
+regional_exports <- exports %>%
+    inner_join(regions, by=c('country'='name')) %>%
+    group_by(year, region) %>%
+    summarise(total_exports=sum(exports))
+```
+
+Now, plot historically as above, but including multiple lines corresponding to subregions:
+
+```{r}
+ggplot(regional_exports, aes(year, total_exports, group=region, color=region)) +
+    geom_line()
+```
+
+This gives us a bit more definition. The vast majority of arms exports went to Europe and Asia. Indeed, I think you can see the Vietnam War on the Asian line, as the war ramped up in 1965 through Nixon's Vietnamization of the the war in the first half of the 1970s.
+
+
+## Space: Top Arms Exporters
+
+Who were the top 10 arms dealers?
+
+```{r}
+countries <- exports %>%
+    group_by(country) %>%
+    summarise(total_exports=sum(exports)) %>%
+    arrange(desc(total_exports))
+
+library(scales)
+ggplot(head(countries, 10), aes(reorder(country, -total_exports), total_exports)) +
+    geom_bar(stat='identity') +
+    labs(x="Country", y="TIV") +
+    scale_y_continuous(labels = comma) +  # no scientific notation on y-axis
+    theme(axis.text.x=element_text(angle=45, hjust=1))
+```
