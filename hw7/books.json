@@ -1,0 +1,25 @@
+[{
+		"id": 1,
+		"title": "The Hunger Games",
+		"authors": "Suzanne Collins",
+		"langauge": "eng",
+		"avg_rating": 4.34,
+		"n_ratings": 4780653
+	},
+	{
+		"id": 2,
+		"title": "Twilight",
+		"authors": ["Stephenie Meyer", "Illustrator Jones"],
+		"langauge": "eng",
+		"avg_rating": 3.57,
+		"n_ratings": 3866839
+	},
+	{
+		"id": 3,
+		"title": "The Fellowship of the Ring",
+		"authors": "J.R.R. Tolkien",
+		"langauge": "eng",
+		"avg_rating": 4.34,
+		"n_ratings": 1766803
+	}
+]

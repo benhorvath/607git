@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+  <book>
+    <authors>Suzanne Collins</authors>
+    <avg_rating>4.34</avg_rating>
+    <id>1</id>
+    <langauge>eng</langauge>
+    <n_ratings>4780653</n_ratings>
+    <title>The Hunger Games</title>
+  </book>
+  <book>
+    <authors>
+      <author>Stephenie Meyer</author>
+      <author>Illustrator Jones</author>
+    </authors>
+    <avg_rating>3.57</avg_rating>
+    <id>2</id>
+    <langauge>eng</langauge>
+    <n_ratings>3866839</n_ratings>
+    <title>Twilight</title>
+  </book>
+  <book>
+    <authors>J.R.R. Tolkien</authors>
+    <avg_rating>4.34</avg_rating>
+    <id>3</id>
+    <langauge>eng</langauge>
+    <n_ratings>1766803</n_ratings>
+    <title>The Fellowship of the Ring</title>
+  </book>
+</books>

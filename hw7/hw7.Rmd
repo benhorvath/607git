@@ -1,0 +1,95 @@
+---
+title: "DATA 607---Homework No. 7"
+author: "Ben Horvath"
+date: "October 14, 2018"
+output:
+  html_document:
+    theme: null
+    css: ../static/architect.css
+    template: ../static/architect.html
+    pandoc_args: [
+      "--mathjax", "",
+      "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+  pdf_document:
+    keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+  \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load general libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+# install.packages('jsonlite', 'rvest')
+```
+
+This document explores loading JSON, XML, and HTML table representations of the same data into R data frames. The data itself is three records, each containing information on popular young adults books.
+
+For your understanding, this is what the JSON data looks like:
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+readLines('books.json')
+```
+
+See the Remarks section toward the end of the document.
+
+
+
+# JSON
+
+```{r, warning=FALSE, message=FALSE}
+library(jsonlite)
+from_json <- fromJSON('books.json', flatten=TRUE)
+head(from_json)
+```
+
+
+
+# XML
+
+```{r, warning=FALSE, message=FALSE}
+library(XML)
+xml_doc <- xmlParse('books.xml')
+root <- xmlRoot(xml_doc)
+data <- xmlSApply(root, function(x) xmlSApply(x, xmlValue))
+from_xml <- data.frame(t(data), row.names=NULL) %>%
+    select(colnames(from_json))
+head(from_xml)
+```
+
+Note the `authors` column, see Remarks below.
+
+
+
+# HTML
+
+Using the `rvest` package by our dear Hadley Wickham:
+
+```{r, warning=FALSE, message=FALSE}
+library(rvest)
+html_doc <- read_html('books.html')
+html_tbl <-  html_doc %>% 
+    html_nodes('table') %>% 
+    html_table
+from_html <- as.data.frame(html_tbl[1])
+head(from_html)
+```
+
+
+
+# Remarks
+
+These three data frames are almost identical. The author data in the XML-derived data frame is printed as one author, `Stephenie MeyerIllustrator Jones` which could become a problem for some analyses of this data. In the othre two data frames, it is appropriately represented with a seperator character, `Stephenie Meyer, Illustrator Jones`.
+
+In the data recording stage, it would probably be a better design decision to put quotation marks around each authors' name, and use a semicolon (rather than comma) to seperate them. This would reduce problems trying to seperate out the individual authors in the author column of the R data frame.
+
+A final observation: The `XML` library converts much of the data to factors, where `rvest` does a good job using the more appropriate integer, numeric, and character data types.
