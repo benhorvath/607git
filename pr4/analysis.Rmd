@@ -1,0 +1,263 @@
+---
+title: "Data 607 -- Project 4"
+author: "Ben Horvath"
+date: "November 4, 2018"
+output:
+    html_document:
+        theme: null
+        toc: true
+        css: ../static/architect.css
+        template: ../static/architect.html
+        pandoc_args: [
+            "--mathjax", "",
+            "--variable", "mathjax-url:https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"]
+    pdf_document:
+        keep_tex: yes
+fontsize: 11pt
+geometry: null
+fontfamily: mathpazo
+fontfamilyoptions: osf,sc
+linestretch: 1.05
+header-includes:
+    \usepackage{eulervm}
+---
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load libraries:
+
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+library(e1071)
+library(stringr)
+library(tidyr)
+library(tm)
+```
+
+Our purpose is to take two directories of e-mails, one containing spam, the other containing _ham_, and develop a model to predict whether e-mails are spam or ham.
+
+After attempting to parse the e-mails to get rid of the header data, I will use TF-IDF scores to create a feature set, split the data into train and test sets (75/25), train a Naive Bayes model, and then use accuracy, precision, recall, and F1 score to evaluate the model.
+
+
+
+# Parsing Raw E-mails
+
+The goal of this section is to develop a function to parse individual e-mails.
+
+First, let's get a look at one of them:
+
+```{r}
+readLines('./easy_ham/00001.7c53336b37003a9286aba55d2945844c')
+```
+
+There are many fields containing metadata about the e-mail, or header data. Some of these fields might be useful for a classifier, but I will not explore them here. Rather, I will try to eliminate them all so they don't confuse the classifier. We can use regular expressions and the `stringr` pacakge to try to filter most of them out.
+
+Ideally, each header field would correspond to a single line. However, some of these lines are broken by '\\n\\t' as well as '\\n  +' sequences. Convert those into single spaces so that each header field sits entirely on its own single line:
+
+```{r}
+raw_msg <- readLines('./easy_ham/00001.7c53336b37003a9286aba55d2945844c') %>%
+    paste(collapse='\n') %>%
+    str_replace_all('\n\t', ' ') %>%
+    str_replace_all('\n  +', ' ')
+```
+
+Next, enumerate the group of header fields to remove:
+
+```{r}
+# Delete these lines
+data_fields <- c('Return-Path:.*\\n', 'Delivered-To:.*\\n', 'Received:.*\\n', 
+                 'References:.*\\n', 'MIME-Version:.*\\n', 'Content-Type:.*\\n',
+                 'Message-Id:.*\\n', 'X-Loop.*\\n', 'Sender:.*\\n', 'Errors-To:.*\\n',
+                 'X-Beenthere:.*\\n', 'X-Mailman-Version:.*\\n', 'In-Reply-To:.*\\n',
+                 'List-Help:.*\\n', 'List-Post:.*\\n', 'List-Subscribe:.*\\n',
+                 'List-Id:.*\\n', 'List-Unsubscribe:.*\\n', 'List-Archive:.*\\n',
+                 'Precedence:.*\\n')
+
+msg <- str_remove_all(raw_msg, paste(data_fields, collapse='|'))
+```
+
+We might want to use some of the more familiar header data, so let's extract them and then remove them from the message text:
+
+```{r}
+message_id <- str_trim(str_match(msg, '(Message-ID::)(.*)')[3])
+from <- str_trim(str_match(msg, '(From:)(.*)')[3])
+to <- str_trim(str_match(msg, '(To:)(.*)')[3])
+cc <- str_trim(str_match(msg, '(CC:|Cc:)(.*)')[3])
+subj <- str_trim(str_match(msg, '(Subject:)(.*)')[3])
+date <- str_trim(str_match(msg, '(Date:)(.*)')[3])
+
+extracted_fields <- c('From:.*\\n', 'To:.*\\n', 'Cc:.*\\n', 'Subject:.*\\n',
+                      'Date:.*\\n')
+msg <- str_remove_all(msg, paste(extracted_fields, collapse='|'))
+```
+
+Here is the final product, the `parse_email()` function:
+
+```{r}
+parse_email <- function(file_path){
+    
+    raw_msg <- readLines(file_path) %>%
+        paste(collapse='\n') %>%
+        str_replace_all('\n\t', ' ') %>%
+        str_replace_all('\n  +', ' ')
+    
+    data_fields <- c('Return-Path:.*\\n', 'Delivered-To:.*\\n', 'Received:.*\\n', 
+                 'References:.*\\n', 'MIME-Version:.*\\n', 'Content-Type:.*\\n',
+                 'Message-Id:.*\\n', 'X-Loop.*\\n', 'Sender:.*\\n', 'Errors-To:.*\\n',
+                 'X-Beenthere:.*\\n', 'X-Mailman-Version:.*\\n', 'In-Reply-To:.*\\n',
+                 'List-Help:.*\\n', 'List-Post:.*\\n', 'List-Subscribe:.*\\n',
+                 'List-Id:.*\\n', 'List-Unsubscribe:.*\\n', 'List-Archive:.*\\n',
+                 'Precedence:.*\\n')
+
+    msg <- str_remove_all(raw_msg, paste(data_fields, collapse='|'))
+    
+    message_id <- str_trim(str_match(msg, '(Message-ID:)(.*)')[3])
+    from <- str_trim(str_match(msg, '(From:)(.*)')[3])
+    to <- str_trim(str_match(msg, '(To:)(.*)')[3])
+    cc <- str_trim(str_match(msg, '(CC:|Cc:)(.*)')[3])
+    subj <- str_trim(str_match(msg, '(Subject:)(.*)')[3])
+    date <- str_trim(str_match(msg, '(Date:)(.*)')[3])
+    
+    extracted_fields <- c('From:.*\\n', 'To:.*\\n', 'Cc:.*\\n', 'Subject:.*\\n',
+                          'Date:.*\\n', 'Message-ID:.*\\n')
+    body <- str_remove_all(msg, paste(extracted_fields, collapse='|'))
+    
+    return(list('id'=message_id,
+                'from'=from,
+                'to'=to,
+                'cc'=cc,
+                'subj'=subj,
+                'date'=date,
+                'body'=msg))
+} 
+
+parse_email('./easy_ham/00001.7c53336b37003a9286aba55d2945844c')
+```
+
+The function isn't perfect, but it will do for our purposes.
+
+
+
+# Assemble the Data
+
+Read in the spam dataset:
+
+```{r}
+spam_files <- lapply(list.files('./spam'), 
+                     function(x) paste('./spam', x, sep='/'))
+
+spam_list <- lapply(spam_files, parse_email)
+spam_list_dfs <- lapply(spam_list, data.frame, stringsAsFactors = FALSE)
+spam <- bind_rows(spam_list_dfs) %>%
+    mutate('y'='spam')
+
+head(spam)
+```
+
+And the same thing with the ham dataset:
+
+```{r}
+ham_files <- lapply(list.files('./easy_ham'), 
+                    function(x) paste('./easy_ham', x, sep='/'))
+
+ham_list <- lapply(ham_files, parse_email)
+ham_list_dfs <- lapply(ham_list, data.frame, stringsAsFactors = FALSE)
+ham <- bind_rows(ham_list_dfs) %>%
+    mutate('y'='ham')
+
+head(ham)
+```
+
+Final dataframe:
+
+```{r}
+df <- rbind(spam, ham)
+df$id <- seq(1, nrow(df))
+
+# Clean up environment:
+rm(ham, ham_files, ham_list, ham_list_dfs, spam, spam_files, spam_list,
+   spam_list_dfs)
+```
+
+
+
+# Feature Engineering
+
+The simplest set of features would be a count of the words (or _tokens_) in each e-mail. I will go one step further and use their term frequency-inverse document frequency (TF-IDF) scores. Other features are easy to imagine, as a quick look at [the literature](https://www.researchgate.net/publication/267379607_Identifying_Potentially_Useful_Email_Header_Features_for_Email_Spam_Filtering) on this topic suggests.
+
+First, let's remove some non-informative words from the e-mails, e.g., _a_, _of_, _another_. I'm using a custom list of stopwords I've used before, plus some troublesome HTML tags.
+
+```{r, warning=FALSE, message=FALSE}
+stop_words <- readLines('stopwords.txt')
+head(stop_words)
+```
+
+Next I'm going to use the `tm` package for various transformations to help the classifier ignore superfluous details: lowercase all words, remove numbers, remove punctuation, remove stopwords, and eliminate excess white space:
+
+```{r, warning=FALSE, message=FALSE}
+corpus <- Corpus(VectorSource(df$body))
+
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removeNumbers)
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeWords, c('body', 'date', 'id', 'cc', 'subj',
+                                        stop_words))
+corpus <- tm_map(corpus, stripWhitespace)
+```
+
+Now, generate the TF-IDF matrix. I'd like to keep the top 1000 terms, which experimentation suggests is where sparsity = 0.985.
+
+```{r, warning=FALSE, message=FALSE}
+dtm <- DocumentTermMatrix(corpus, control=list(weighting=weightTfIdf))
+dtm <- removeSparseTerms(dtm, 0.985)
+print(dtm$ncol)
+
+features <- cbind(df, data.frame(as.matrix(dtm))) %>%
+    select(-2, -3, -4, -5, -6, -7)
+```
+
+
+
+# Modeling
+
+Split into test and train sets:
+
+```{r}
+set.seed(1804)
+train_ix <- sample(seq(1, nrow(features), 1), .75*nrow(features))
+
+train <- features[train_ix,]
+test <- features[-train_ix,]
+```
+
+Model using Naive Bayes:
+
+```{r}
+nb <- naiveBayes(as.factor(y) ~ ., data=train)
+```
+
+
+
+# Evaluation
+
+Take a look how model performs on test set:
+
+```{r}
+pred <- predict(nb, test)
+table(pred, test$y)
+```
+
+Calculate a few performance metrics:
+
+```{r}
+(accuracy <- (485 + 122)/750)
+(precision <- 122 / (122 + 4))
+(recall <- 122 / (122 + 139))
+(f1 <- 2 * ((precision*recall) / (precision+recall)))
+```
+
+This model looks pretty good for a couple hours' work!
+
+In my opinion, optimizing for high precision is probably the route to go. For e-mail spam classification tasks, I would imagine that false positives are considered more costly than false negatives---that is, we would rather let a spam e-mail into the inbox than exclude a real e-mail as spam. Precision is a good metric for when the costs of a false positive are high, like in this case.
